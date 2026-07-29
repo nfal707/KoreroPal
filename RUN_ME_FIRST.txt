@@ -1,0 +1,7 @@
+1. Open a terminal in this folder.
+2. Create and activate a Python 3.12 virtual environment.
+3. Run: pip install -r requirements.txt
+4. Run: pytest
+5. Run: streamlit run app.py
+6. Read DEPLOYMENT.md before publishing.
+7. Use newly created API keys. Never upload .streamlit/secrets.toml, API keys, or data/koreropal.db.
