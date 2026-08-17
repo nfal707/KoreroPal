@@ -71,6 +71,14 @@ Tell them to contact real support in New Zealand:
 - Lifeline 0800 543 354 or text HELP to 4357
 """
 
+def clean_writing_style(text):
+    return (
+        text
+        .replace(" — ", ". ")
+        .replace("—", ", ")
+        .replace(" – ", " - ")
+        .replace("–", "-")
+    )
 
 def groq_available():
     return get_secret("GROQ_API_KEY") is not None
