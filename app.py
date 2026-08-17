@@ -133,7 +133,12 @@ def valid_anonymous_id(value):
 
 def get_anonymous_id():
     if "anonymous_id" in st.session_state:
-        return st.session_state.anonymous_id
+        anonymous_id = st.session_state.anonymous_id
+
+        if st.query_params.get("study") != anonymous_id:
+            st.query_params["study"] = anonymous_id
+
+        return anonymous_id
 
     query_id = st.query_params.get("study")
 
@@ -193,24 +198,6 @@ def sidebar(anonymous_id):
         st.query_params["study"] = anonymous_id
         reset_session_data()
         st.rerun()
-
-    page = st.sidebar.radio(
-    "Navigation",
-    [
-        "Home",
-        "Daily Check-in",
-        "AI Support Chat",
-        "My Dashboard",
-        "Project Results",
-        "Coping Toolkit",
-        "Small Goals",
-        "NZ Resources",
-        "Privacy and About",
-    ],
-    label_visibility="collapsed",
-)
-
-    return page
 
 
 def home_page():
@@ -750,33 +737,88 @@ def privacy_page():
 
 
 def main():
-    st.set_page_config(page_title=APP_NAME, page_icon="💬", layout="centered")
+    st.set_page_config(
+        page_title=APP_NAME,
+        page_icon="💬",
+        layout="centered",
+    )
+
     init_db()
     initialise_session_data()
 
     anonymous_id = get_anonymous_id()
 
-    page_header()
-    page = sidebar(anonymous_id)
+    pages = {
+        "": [
+            st.Page(
+                home_page,
+                title="Home",
+                icon=":material/home:",
+                url_path="home",
+                default=True,
+            ),
+            st.Page(
+                lambda: checkin_page(anonymous_id),
+                title="Check-in",
+                icon=":material/check_circle:",
+                url_path="check-in",
+            ),
+            st.Page(
+                lambda: chat_page(anonymous_id),
+                title="Support Chat",
+                icon=":material/chat:",
+                url_path="support",
+            ),
+            st.Page(
+                lambda: my_dashboard_page(anonymous_id),
+                title="Dashboard",
+                icon=":material/monitoring:",
+                url_path="dashboard",
+            ),
+        ],
+        "Explore": [
+            st.Page(
+                project_results_page,
+                title="Project Results",
+                icon=":material/analytics:",
+                url_path="results",
+            ),
+            st.Page(
+                toolkit_page,
+                title="Coping Toolkit",
+                icon=":material/self_improvement:",
+                url_path="toolkit",
+            ),
+            st.Page(
+                goals_page,
+                title="Small Goals",
+                icon=":material/flag:",
+                url_path="goals",
+            ),
+            st.Page(
+                resources_page,
+                title="NZ Resources",
+                icon=":material/health_and_safety:",
+                url_path="resources",
+            ),
+            st.Page(
+                privacy_page,
+                title="Privacy & About",
+                icon=":material/info:",
+                url_path="about",
+            ),
+        ],
+    }
 
-    if page == "Home":
-        home_page()
-    elif page == "Daily Check-in":
-        checkin_page(anonymous_id)
-    elif page == "AI Support Chat":
-        chat_page(anonymous_id)
-    elif page == "My Dashboard":
-        my_dashboard_page(anonymous_id)
-    elif page == "Project Results":
-        project_results_page()
-    elif page == "Coping Toolkit":
-        toolkit_page()
-    elif page == "Small Goals":
-        goals_page()
-    elif page == "NZ Resources":
-        resources_page()
-    elif page == "Privacy and About":
-        privacy_page()
+    navigation = st.navigation(
+        pages,
+        position="top",
+    )
+
+    page_header()
+    sidebar(anonymous_id)
+
+    navigation.run()
 
 
 if __name__ == "__main__":
