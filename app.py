@@ -194,20 +194,21 @@ def sidebar(anonymous_id):
         reset_session_data()
         st.rerun()
 
-    page = st.sidebar.selectbox(
-        "Choose a page",
-        [
-            "Home",
-            "Daily Check-in",
-            "AI Support Chat",
-            "My Dashboard",
-            "Project Results",
-            "Coping Toolkit",
-            "Small Goals",
-            "NZ Resources",
-            "Privacy and About",
-        ],
-    )
+    page = st.sidebar.radio(
+    "Navigation",
+    [
+        "Home",
+        "Daily Check-in",
+        "AI Support Chat",
+        "My Dashboard",
+        "Project Results",
+        "Coping Toolkit",
+        "Small Goals",
+        "NZ Resources",
+        "Privacy and About",
+    ],
+    label_visibility="collapsed",
+)
 
     return page
 
