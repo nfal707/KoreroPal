@@ -116,7 +116,8 @@ def call_groq(message, recent_context="", conversation_history=None):
         max_tokens=500,
     )
 
-    return response.choices[0].message.content.strip()
+    text = response.choices[0].message.content.strip()
+    return clean_writing_style(text)
 
 
 def fallback_response(message):
@@ -141,7 +142,7 @@ def generate_support_response(message, recent_context="", conversation_history=N
             response = call_groq(message, recent_context, conversation_history)
 
             if response:
-                return response + safety_footer(), risk
+                return clean_writing_style(response + safety_footer()), risk
         except Exception:
             return (
                 fallback_response(message)
