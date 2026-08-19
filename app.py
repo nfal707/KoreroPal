@@ -90,26 +90,43 @@ def page_header():
             border: 1px solid #B7D5C8;
         }
 
-        textarea, input {
+        textarea,
+        input {
             border-radius: 12px !important;
+        }
+
+        /* Fixed chat input area */
+        div[data-testid="stBottom"] {
+            background: transparent !important;
+        }
+
+        div[data-testid="stBottom"] > div {
+            background: transparent !important;
+            box-shadow: none !important;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    st.markdown('<p class="main-title">KōreroPal</p>', unsafe_allow_html=True)
     st.markdown(
-        '<p class="subtitle">A calm wellbeing reflection app for talking, tracking, and taking the next small step.</p>',
+        '<p class="main-title">KōreroPal</p>',
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        '<p class="subtitle">'
+        'A calm wellbeing reflection app for talking, tracking, and taking the next small step.'
+        '</p>',
         unsafe_allow_html=True,
     )
 
     st.markdown(
         """
         <div class="project-note">
-        <b>University project:</b> KōreroPal is a student-built portfolio project.
-        It is not made by, endorsed by, or affiliated with the New Zealand Ministry of Education,
-        Ministry of Health, University of Auckland, or any official support service.
+            <b>University project:</b> KōreroPal is a student-built portfolio project.
+            It is not made by, endorsed by, or affiliated with the New Zealand Ministry of Education,
+            Ministry of Health, University of Auckland, or any official support service.
         </div>
         """,
         unsafe_allow_html=True,
@@ -315,18 +332,23 @@ def start_reflection_form():
 
 
 def display_chat_history():
-    """Display the current session conversation using Streamlit chat components."""
+    """Display the current session conversation."""
 
     for item in st.session_state.chat_history:
         role = item.get("role", "assistant")
         content = item.get("content", "")
 
-        with st.chat_message(role):
-            st.markdown(content)
+        if role == "user":
+            with st.chat_message("Me"):
+                st.markdown(f"**Me:**\n\n{content}")
+
+        else:
+            with st.chat_message("KōreroPal", avatar="🌿"):
+                st.markdown(f"**KōreroPal:**\n\n{content}")
 
 
 def chat_form(anonymous_id):
-    """Handle the KōreroPal reflection conversation for the current session."""
+    """Handle the KōreroPal reflection conversation."""
 
     st.subheader("2. Talk with KōreroPal")
 
@@ -338,7 +360,7 @@ def chat_form(anonymous_id):
 
     display_chat_history()
 
-    message = st.chat_input(
+    message = st.bottom.chat_input(
         "Share what's on your mind...",
         key="support_chat_input",
     )
@@ -370,10 +392,10 @@ def chat_form(anonymous_id):
         }
     )
 
-    with st.chat_message("user"):
-        st.markdown(message)
+    with st.chat_message("Me"):
+        st.markdown(f"**Me:**\n\n{message}")
 
-    with st.chat_message("assistant"):
+    with st.chat_message("KōreroPal", avatar="🌿"):
         with st.spinner("KōreroPal is reflecting..."):
             response, risk = generate_support_response(
                 message,
@@ -381,7 +403,7 @@ def chat_form(anonymous_id):
                 conversation_history=previous_history,
             )
 
-        st.markdown(response)
+        st.markdown(f"**KōreroPal:**\n\n{response}")
 
     st.session_state.chat_history.append(
         {
