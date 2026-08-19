@@ -315,59 +315,83 @@ def start_reflection_form():
 
 
 def display_chat_history():
-    for item in st.session_state.chat_history:
-        if item["role"] == "user":
-            st.markdown(f"**You:** {item['content']}")
-        else:
-            st.markdown(f"**KōreroPal:** {item['content']}")
+    """Display the current session conversation using Streamlit chat components."""
 
-        st.divider()
+    for item in st.session_state.chat_history:
+        role = item.get("role", "assistant")
+        content = item.get("content", "")
+
+        with st.chat_message(role):
+            st.markdown(content)
 
 
 def chat_form(anonymous_id):
+    """Handle the KōreroPal reflection conversation for the current session."""
+
     st.subheader("2. Talk with KōreroPal")
+
     st.caption(
-        "The conversation is kept only in this active session and is not saved in the KōreroPal database. "
-        "Avoid names, contact details, student IDs, or exact locations."
+        "Your conversation is retained only for the current session and is not "
+        "stored in the KōreroPal database. Please avoid entering names, contact "
+        "details, student IDs, or exact locations."
     )
 
-    if st.session_state.chat_history:
-        display_chat_history()
+    display_chat_history()
 
-    with st.form("chat_form", clear_on_submit=True):
-        message = st.text_area(
-            "What's on your mind?",
-            height=140,
-            placeholder="Example: I feel overwhelmed by the amount of work I need to do.",
+    message = st.chat_input(
+        "Share what's on your mind...",
+        key="support_chat_input",
+    )
+
+    if not message:
+        return
+
+    message = message.strip()
+
+    if not message:
+        return
+
+    try:
+        checkins = load_daily_checkins(anonymous_id)
+        recent_context = recent_context_from_checkins(checkins)
+
+    except DatabaseConnectionError as error:
+        st.warning(
+            f"{error} KōreroPal can continue without recent check-in context."
         )
-        submitted = st.form_submit_button("Send")
+        recent_context = ""
 
-    if submitted:
-        if not message.strip():
-            st.warning("Write a message first.")
-            return
+    previous_history = st.session_state.chat_history.copy()
 
-        try:
-            checkins = load_daily_checkins(anonymous_id)
-            recent_context = recent_context_from_checkins(checkins)
-        except DatabaseConnectionError as error:
-            st.warning(f"{error} The chat can still continue without recent check-in context.")
-            recent_context = ""
-        previous_history = st.session_state.chat_history.copy()
+    st.session_state.chat_history.append(
+        {
+            "role": "user",
+            "content": message,
+        }
+    )
 
-        response, risk = generate_support_response(
-            message.strip(),
-            recent_context=recent_context,
-            conversation_history=previous_history,
-        )
+    with st.chat_message("user"):
+        st.markdown(message)
 
-        st.session_state.chat_history.append(
-            {"role": "user", "content": message.strip()}
-        )
-        st.session_state.chat_history.append(
-            {"role": "assistant", "content": response, "risk": risk}
-        )
-        st.rerun()
+    with st.chat_message("assistant"):
+        with st.spinner("KōreroPal is reflecting..."):
+            response, risk = generate_support_response(
+                message,
+                recent_context=recent_context,
+                conversation_history=previous_history,
+            )
+
+        st.markdown(response)
+
+    st.session_state.chat_history.append(
+        {
+            "role": "assistant",
+            "content": response,
+            "risk": risk,
+        }
+    )
+
+    st.rerun()
 
 
 def finish_reflection_form(anonymous_id):
