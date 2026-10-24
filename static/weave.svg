@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="960" viewBox="0 0 240 960">
+  <defs>
+    <linearGradient id="reed-v" x1="0" x2="1"><stop stop-color="#657052"/><stop offset=".35" stop-color="#899275"/><stop offset=".8" stop-color="#7b8566"/><stop offset="1" stop-color="#535f45"/></linearGradient>
+    <linearGradient id="reed-h" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#939b7d"/><stop offset=".4" stop-color="#a4aa8e"/><stop offset=".85" stop-color="#808c69"/><stop offset="1" stop-color="#667453"/></linearGradient>
+    <pattern id="woven" width="80" height="80" patternUnits="userSpaceOnUse" patternTransform="rotate(45) scale(.7071067811865476)">
+      <rect width="80" height="80" fill="#46553d"/>
+      <path d="M4 0h32v80H4zM44 0h32v80H44z" fill="url(#reed-v)"/>
+      <path d="M0 4h80v32H0zM0 44h80v32H0z" fill="url(#reed-h)"/>
+      <path d="M44 0h32v40H44zM4 40h32v40H4z" fill="url(#reed-v)"/>
+      <path d="M9 40v40m5-40v40m35-80v40m5-40v40M0 10h40M0 16h40m0 34h40m-40 6h40" fill="none" stroke="#e7e7cf" stroke-width=".7" opacity=".23"/>
+    </pattern>
+  </defs>
+  <rect width="240" height="960" fill="url(#woven)"/>
+</svg>

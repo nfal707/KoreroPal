@@ -40,9 +40,17 @@ KōreroPal collects anonymous Likert ratings to examine changes in self-reported
 
 ## Session and browser behaviour
 
-The anonymous study code appears in the page URL. A user can bookmark that URL to reconnect the same anonymous record or create a new code at any time. The dashboard can download CSV files to the user's device through the browser.
+New private recovery codes contain 160 random bits and are held in the active session, not added to the URL. Save the code privately and use the sidebar to restore ratings later. Anyone with the code can access those ratings; it is a bearer credential, not an authenticated account. Losing the code means the app cannot recover the record. Legacy ten-character codes and old bookmarked links still work. The app removes the legacy code from the visible URL on arrival, but cannot remove copies already retained in browser history, bookmarks, or hosting logs. The dashboard can download CSV files to the user's device through the browser.
 
-Chat history, temporary before-session ratings, and goals are held only in active Streamlit session memory. They are cleared when the session is reset and are not inserted into the KōreroPal study tables.
+Chat history, temporary before-session ratings, and goals are held only in active Streamlit session memory. Chat is cleared after saving an evaluation or discarding the reflection. Chat and goals are both cleared when switching recovery codes. They are cleared when the session ends and are not inserted into the KōreroPal study tables.
+
+Journal writing and optional daily habit choices also stay in session memory on the server. They survive page navigation within that session, but can disappear after refresh, disconnection or session expiry. Switching recovery codes clears both. Habit choices reset on a new day in Pacific/Auckland time. Journals are never sent to the AI or saved to the ratings database. The user can clear their writing or download a text copy, which then remains on their device.
+
+The breathing timer runs inside an embedded browser component without network requests or storage. It does not record breathing or health data. It pauses when the browser hides the page.
+
+The contact form prepares a public GitHub issue link. Nothing is submitted until the user opens GitHub, reviews the report and submits it there. Reports must not contain private or wellbeing information. If configured, the newsletter link opens an external subscription service with its own privacy and consent controls; KōreroPal does not collect subscriber addresses itself.
+
+Streamlit usage telemetry is disabled. The project adds no advertising scripts or optional analytics cookies. Necessary hosting, session and security mechanisms may still process connection data.
 
 ## External services
 
@@ -57,3 +65,11 @@ Removing direct identifiers does not automatically make wellbeing data risk-free
 ## Interpretation
 
 The dashboard presents descriptive self-report results. Before and after changes do not prove that KōreroPal caused an improvement and should not be described as treatment effectiveness.
+
+## Access limits
+
+There is no public project-wide results page. Database reads require a valid recovery code and filter to that record. Supabase tables have RLS enabled with no public policies; the server uses a private secret key. This means the application server, not Supabase user authentication, enforces recovery-code access. The dashboard returns up to the latest 5,000 records per table when using Supabase.
+
+Chat is limited to 2,000 characters per message, eight recent messages in the AI context, and 30 normal turns per reflection. Each submitted turn is processed once within its active session and automatic provider retries are disabled. A three-second pause limits rapid normal submissions. Crisis responses bypass the cooldown and turn limit. These are session-level controls, not a global abuse-prevention system.
+
+KōreroPal does not currently provide self-service deletion. The project owner must establish a retention and deletion process before recruiting participants. Chat processing by Groq is separate from storage in the KōreroPal database.

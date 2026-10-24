@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -7,9 +8,10 @@ import pandas as pd
 import requests
 
 from core.config import get_secret
+from core.identity import validate_anonymous_id
 
 
-DB_PATH = Path("data/koreropal.db")
+DB_PATH = Path(__file__).resolve().parent.parent / "data" / "koreropal.db"
 SUPABASE_TIMEOUT = 15
 
 
@@ -46,7 +48,11 @@ def supabase_url():
 
 
 def supabase_available():
-    return bool(supabase_url() and supabase_key())
+    url = supabase_url()
+    key = supabase_key()
+    if bool(url) != bool(key):
+        raise DatabaseConnectionError("Database setup is incomplete. Please ask the app owner to check its configuration.")
+    return bool(url and key)
 
 
 def database_name():
@@ -62,12 +68,14 @@ def supabase_headers():
     if not key:
         raise DatabaseConnectionError("The Supabase secret key is missing.")
 
-    return {
+    headers = {
         "apikey": key,
-        "Authorization": f"Bearer {key}",
         "Content-Type": "application/json",
         "Prefer": "return=minimal",
     }
+    if not key.startswith("sb_secret_"):
+        headers["Authorization"] = f"Bearer {key}"
+    return headers
 
 
 def supabase_table_url(table_name):
@@ -83,24 +91,35 @@ def supabase_table_url(table_name):
             "SUPABASE_URL must be the HTTPS project URL from the Supabase dashboard."
         )
 
-    if "/rest/v1" in parsed_url.path:
+    if parsed_url.username or parsed_url.password or parsed_url.query or parsed_url.fragment:
+        raise DatabaseConnectionError("The database project URL is not valid.")
+
+    if parsed_url.path not in {"", "/"}:
         raise DatabaseConnectionError(
             "SUPABASE_URL must not include /rest/v1. Use only the project URL."
         )
+
+    if table_name not in {"daily_checkins", "evaluation_sessions"}:
+        raise ValueError("Unknown ratings table.")
 
     return f"{base_url}/rest/v1/{table_name}"
 
 
 def request_supabase(method, table_name, **kwargs):
     try:
+        headers = supabase_headers()
+        headers.update(kwargs.pop("headers", {}))
         response = requests.request(
             method,
             supabase_table_url(table_name),
-            headers=supabase_headers(),
+            headers=headers,
+            allow_redirects=False,
             timeout=SUPABASE_TIMEOUT,
             **kwargs,
         )
         response.raise_for_status()
+        if 300 <= response.status_code < 400:
+            raise DatabaseConnectionError("The database returned an unexpected redirect.")
         return response
     except requests.exceptions.Timeout as error:
         raise DatabaseConnectionError(
@@ -172,7 +191,7 @@ def init_db():
 
 
 def valid_likert(value):
-    return isinstance(value, int) and 1 <= value <= 7
+    return type(value) is int and 1 <= value <= 7
 
 
 def validate_ratings(values):
@@ -182,6 +201,7 @@ def validate_ratings(values):
 
 
 def save_daily_checkin(anonymous_id, mood, stress, energy):
+    validate_anonymous_id(anonymous_id)
     validate_ratings([mood, stress, energy])
 
     row = {
@@ -228,6 +248,7 @@ def save_evaluation_session(
     response_relevance,
     would_use_again,
 ):
+    validate_anonymous_id(anonymous_id)
     validate_ratings(
         [
             mood_before,
@@ -258,8 +279,19 @@ def save_evaluation_session(
     }
 
     if supabase_available():
-        request_supabase("POST", "evaluation_sessions", json=row)
-        return
+        request_supabase(
+            "POST", "evaluation_sessions", json=row,
+            params={"on_conflict": "interaction_id"},
+            headers={"Prefer": "resolution=ignore-duplicates,return=minimal"},
+        )
+        response = request_supabase(
+            "GET", "evaluation_sessions",
+            params={"select": "*", "interaction_id": f"eq.{interaction_id}", "anonymous_id": f"eq.{anonymous_id}", "limit": "1"},
+        )
+        saved = response.json()
+        if not saved:
+            raise DatabaseConnectionError("The saved reflection could not be confirmed. Please try saving again.")
+        return saved[0]
 
     conn = connect()
     cur = conn.cursor()
@@ -280,6 +312,7 @@ def save_evaluation_session(
             would_use_again
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(interaction_id) DO NOTHING
         """,
         (
             row["interaction_id"],
@@ -297,70 +330,48 @@ def save_evaluation_session(
         ),
     )
     conn.commit()
+    conn.row_factory = sqlite3.Row
+    saved = conn.execute(
+        "SELECT * FROM evaluation_sessions WHERE interaction_id = ? AND anonymous_id = ?",
+        (interaction_id, anonymous_id),
+    ).fetchone()
     conn.close()
+    if saved is None:
+        raise DatabaseConnectionError("The saved reflection could not be confirmed.")
+    return dict(saved)
 
 
-def load_supabase_table(table_name, anonymous_id=None):
+def load_supabase_table(table_name, anonymous_id):
+    validate_anonymous_id(anonymous_id)
     params = {
         "select": "*",
-        "order": "created_at.asc",
+        "order": "created_at.desc,id.desc",
         "limit": "5000",
+        "anonymous_id": f"eq.{anonymous_id}",
     }
-
-    if anonymous_id:
-        params["anonymous_id"] = f"eq.{anonymous_id}"
-
     response = request_supabase("GET", table_name, params=params)
-    return pd.DataFrame(response.json())
+    return pd.DataFrame(response.json()).iloc[::-1].reset_index(drop=True)
 
 
-def load_daily_checkins(anonymous_id=None):
+def load_daily_checkins(anonymous_id):
+    validate_anonymous_id(anonymous_id)
     if supabase_available():
         return load_supabase_table("daily_checkins", anonymous_id)
 
-    conn = connect()
-
-    if anonymous_id:
-        df = pd.read_sql_query(
-            """
-            SELECT * FROM daily_checkins
-            WHERE anonymous_id = ?
-            ORDER BY created_at ASC
-            """,
-            conn,
-            params=(anonymous_id,),
-        )
-    else:
-        df = pd.read_sql_query(
-            "SELECT * FROM daily_checkins ORDER BY created_at ASC",
-            conn,
+    with closing(connect()) as conn:
+        return pd.read_sql_query(
+            "SELECT * FROM daily_checkins WHERE anonymous_id = ? ORDER BY created_at ASC, id ASC",
+            conn, params=(anonymous_id,),
         )
 
-    conn.close()
-    return df
 
-
-def load_evaluation_sessions(anonymous_id=None):
+def load_evaluation_sessions(anonymous_id):
+    validate_anonymous_id(anonymous_id)
     if supabase_available():
         return load_supabase_table("evaluation_sessions", anonymous_id)
 
-    conn = connect()
-
-    if anonymous_id:
-        df = pd.read_sql_query(
-            """
-            SELECT * FROM evaluation_sessions
-            WHERE anonymous_id = ?
-            ORDER BY created_at ASC
-            """,
-            conn,
-            params=(anonymous_id,),
+    with closing(connect()) as conn:
+        return pd.read_sql_query(
+            "SELECT * FROM evaluation_sessions WHERE anonymous_id = ? ORDER BY created_at ASC, id ASC",
+            conn, params=(anonymous_id,),
         )
-    else:
-        df = pd.read_sql_query(
-            "SELECT * FROM evaluation_sessions ORDER BY created_at ASC",
-            conn,
-        )
-
-    conn.close()
-    return df

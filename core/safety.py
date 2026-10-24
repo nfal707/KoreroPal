@@ -1,5 +1,14 @@
+import unicodedata
+
+
 CRISIS_KEYWORDS = [
     "suicide",
+    "suicidal",
+    "kill myself",
+    "overdose",
+    "took too many pills",
+    "hurt someone",
+    "kill someone",
     "kill myself",
     "end my life",
     "end it all",
@@ -27,9 +36,10 @@ HIGH_DISTRESS_KEYWORDS = [
 
 
 def assess_risk(message):
-    text = message.lower()
+    text = unicodedata.normalize("NFKC", message).lower()
+    text = " ".join(text.replace("’", "'").replace("-", " ").split())
 
-    if any(keyword in text for keyword in CRISIS_KEYWORDS):
+    if any(keyword.replace("-", " ") in text for keyword in CRISIS_KEYWORDS):
         return "crisis"
 
     if any(keyword in text for keyword in HIGH_DISTRESS_KEYWORDS):
@@ -43,14 +53,8 @@ def crisis_response():
         "I'm really sorry you're feeling this way. KōreroPal is not a crisis service, "
         "but you deserve real support now.\n\n"
         "If you are in immediate danger in New Zealand, call 111 now.\n\n"
-        "You can also call or text 1737 anytime to speak with a trained counsellor. "
-        "Lifeline NZ is available on 0800 543 354 or by texting HELP to 4357.\n\n"
+        "You can call [1737](tel:1737?oai_link_source=model_response_hotline) or "
+        "text [1737](sms:1737?oai_link_source=model_response_hotline) for free support, 24 hours a day.\n\n"
+        "Outside New Zealand, contact your local emergency or crisis service.\n\n"
         "If possible, move near another person, contact someone you trust, or go to a safe public place."
-    )
-
-
-def safety_footer():
-    return (
-        "\n\nReminder: KōreroPal is a wellbeing reflection tool, not a therapist, doctor, "
-        "or crisis service."
     )

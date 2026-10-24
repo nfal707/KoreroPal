@@ -1,5 +1,21 @@
 # KōreroPal
 
+## Interface and reflection update
+
+The website now has a consistent olive, sage and warm ivory design, with a transparent version of my original logo and a subtle woven edge. The logo is cleaned from the supplied artwork using ordinary image processing. No AI-generated photos or media are used. The woven SVG is an original geometric design inspired by interlacing flax strips, rather than a copy of the reference artwork.
+
+The main pages cover guided practices, a searchable directory of New Zealand wellbeing resources, reflection, the project background, and a private space for check-ins, progress, writing and small habits. A breathing timer can start, pause and reset; a grounding exercise moves through five steps. Journal drafts and daily habit choices survive navigation in the same session, but they are not stored in the database or restored by a recovery code. Writing can be cleared or downloaded.
+
+The feedback form validates a public GitHub report draft before opening it for review. It does not send a message by itself. Newsletter signup only appears when a real hosted subscription URL is configured. There are no invented testimonials, team members, social profiles or subscription services. See `DESIGN.md` for the visual system and asset notes.
+
+The app now uses the supplied olive KōreroPal logo and a calmer layout. Reflection has four explicit stages: starting ratings, a dedicated conversation space, ending the chat, and saved before-and-after results. Choose **End chat** or type `end chat` to open the final ratings. KōreroPal never assigns a clinical rank or score.
+
+The wellbeing notice stays in the interface instead of being appended to each routine reply. Each submitted turn has a session-scoped request identifier, the provider has a 20-second timeout with automatic retries disabled, and conversation length is bounded. Built-in prompts remain available when Groq fails. The model, temperature of 0.65, and 500-token reply limit are preserved.
+
+New recovery codes stay out of the URL. Keep your code private to restore your ratings later. Old codes still work. Public project-wide results have been removed because small groups can reveal individual ratings. See `PRIVACY.md` for the access model and its limits.
+
+
+
 KōreroPal is a wellbeing reflection app I built using Python and Streamlit, bringing together the two main areas I am studying, Computer Science and Psychology. I have always been interested in where technology and psychology overlap, particularly whether technology can support real human connection rather than attempting to replace it. This project became my way of exploring that question through something which actually works, rather than only writing about the idea.
 
 The main purpose of KōreroPal is to give someone a place to check in with how they are feeling, talk through what is going on, and decide on one smaller step they can take afterwards. It is not trying to solve somebody's life through one AI response. A person may know they are stressed, exhausted or avoiding something, but knowing that does not automatically make it easy to decide what to do next. The app is built around that gap.
@@ -14,7 +30,7 @@ KōreroPal is still a student-built wellbeing tool. It is not a therapist, couns
 
 A lot of applications immediately ask a person to create an account, enter an email, choose a password and hand over information before they have even used it. I considered adding normal accounts because it would have made returning users much easier to manage, although it also felt unnecessary for what I was trying to create. Somebody should be able to open the app and begin a check-in without creating another login, particularly when the subject they want to talk about may already feel personal.
 
-Instead, KōreroPal creates a random anonymous code and places it in the URL. The person can bookmark that link and return to their previous ratings. No name, email address, password, phone number or student ID is required.
+Instead, KōreroPal creates a random private recovery code. The person saves that code and restores it through the sidebar to return to previous ratings. New codes are kept out of the URL. Anyone with the code can open those ratings, so it needs to be treated like a password. No name, email address, phone number or student ID is required.
 
 The session begins with three ratings: mood, stress and energy. The person can then speak with the reflection companion, look through some practical coping strategies, write a small next step and complete another rating afterwards.
 
@@ -147,7 +163,7 @@ Open the VS Code terminal through **Terminal → New Terminal**, then run:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-lock.txt
 ```
 
 ### Windows PowerShell
@@ -158,7 +174,7 @@ Open the VS Code terminal and run:
 py -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-lock.txt
 ```
 
 If PowerShell blocks the activation script, run:
@@ -254,7 +270,7 @@ Make sure the virtual environment is active, then run:
 python -m pytest
 ```
 
-There are currently 14 automated tests covering the local database, summaries, configuration, coping strategy selection and parts of the safety behaviour.
+The automated suite covers the local database, scoped access, summaries, configuration, coping strategies, request deduplication, provider failures, safety handling, and the Streamlit reflection flow. It also opens every registered page and checks resource search, journal navigation and clearing, habit resets, identity changes, grounding controls, and feedback validation.
 
 GitHub Actions is also configured to run the tests whenever code is pushed to the repository.
 

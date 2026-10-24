@@ -5,6 +5,11 @@ from pathlib import Path
 
 APP_NAME = "KōreroPal"
 DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+MAX_MESSAGE_LENGTH = 2000
+MAX_CHAT_TURNS = 30
+SAFETY_NOTICE = (
+    "KōreroPal is a wellbeing reflection tool, not a therapist, doctor, or crisis service."
+)
 LIKERT_MIN = 1
 LIKERT_MAX = 7
 
@@ -16,18 +21,8 @@ NZ_RESOURCES = [
     },
     {
         "name": "1737",
-        "contact": "Call or text 1737",
+        "contact": "Call [1737](tel:1737?oai_link_source=model_response_hotline) or text [1737](sms:1737?oai_link_source=model_response_hotline)",
         "when": "Free support from a trained counsellor in New Zealand",
-    },
-    {
-        "name": "Lifeline NZ",
-        "contact": "0800 543 354 or text HELP to 4357",
-        "when": "Emotional distress or crisis support",
-    },
-    {
-        "name": "Youthline",
-        "contact": "0800 376 633 or text 234",
-        "when": "Support for young people",
     },
     {
         "name": "Healthline",

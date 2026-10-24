@@ -1,14 +1,17 @@
-import re
-import secrets
-import string
+from pathlib import Path
 import uuid
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 import streamlit as st
 
-from core.ai import generate_support_response, groq_available
-from core.config import APP_NAME, NZ_RESOURCES
+from core.ai import groq_available
+from core.config import APP_NAME, MAX_CHAT_TURNS, MAX_MESSAGE_LENGTH, NZ_RESOURCES, SAFETY_NOTICE
+from core.identity import create_anonymous_id, valid_anonymous_id
+from core.reflection import create_chat, is_end_chat, send_message
+from core.safety import assess_risk, crisis_response
 from core.database import (
     DatabaseConnectionError,
     database_name,
@@ -25,232 +28,104 @@ from core.summaries import (
     recent_context_from_checkins,
 )
 from core.strategies import STRATEGIES, format_strategy
+from core import website
+from core.content import LEGACY_GUIDE_PATHS
+from core.ui import brand_header, footer, intro, safety_note, STATIC
+
+
+ASSETS = Path(__file__).resolve().parent / "assets"
 
 
 def page_header():
-    st.markdown(
-        """
-        <style>
-        .stApp {
-            background: linear-gradient(180deg, #F4FAF7 0%, #EAF4EF 100%);
-            color: #1F332B;
-        }
-
-        section[data-testid="stSidebar"] {
-            background-color: #DDEDE5;
-        }
-
-        .main-title {
-            font-size: 42px;
-            font-weight: 700;
-            color: #2F6F5E;
-            margin-bottom: 0;
-        }
-
-        .subtitle {
-            color: #4D6B60;
-            font-size: 17px;
-            margin-top: 0;
-        }
-
-        .project-note {
-            background-color: #FFF8E7;
-            border-left: 5px solid #D6A84F;
-            padding: 12px;
-            border-radius: 10px;
-            color: #4A3B1F;
-            margin-bottom: 18px;
-        }
-
-        .privacy-note {
-            background-color: #EEF8F4;
-            border-left: 5px solid #5E9C87;
-            padding: 12px;
-            border-radius: 10px;
-            color: #294A3E;
-            margin-bottom: 18px;
-        }
-
-        .stButton > button {
-            background-color: #5E9C87;
-            color: white;
-            border-radius: 12px;
-            border: none;
-            padding: 0.6rem 1rem;
-        }
-
-        .stButton > button:hover {
-            background-color: #497F6D;
-            color: white;
-        }
-
-        div[data-baseweb="select"] > div {
-            background-color: #F7FCFA;
-            border-radius: 12px;
-            border: 1px solid #B7D5C8;
-        }
-
-        textarea,
-        input {
-            border-radius: 12px !important;
-        }
-
-        /* Fixed chat input area */
-        div[data-testid="stBottom"] {
-            background: transparent !important;
-        }
-
-        div[data-testid="stBottom"] > div {
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        '<p class="main-title">KōreroPal</p>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        '<p class="subtitle">'
-        'A calm wellbeing reflection app for talking, tracking, and taking the next small step.'
-        '</p>',
-        unsafe_allow_html=True,
-    )
-
-    st.markdown(
-        """
-        <div class="project-note">
-            <b>University project:</b> KōreroPal is a student-built portfolio project.
-            It is not made by, endorsed by, or affiliated with the New Zealand Ministry of Education,
-            Ministry of Health, University of Auckland, or any official support service.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.warning(
-        "KōreroPal is not a therapist, doctor, counsellor, crisis service, or diagnosis tool. "
-        "If you are in immediate danger in New Zealand, call 111."
-    )
-
-
-def create_anonymous_id():
-    characters = string.ascii_uppercase + string.digits
-    code = "".join(secrets.choice(characters) for _ in range(10))
-    return f"KP-{code}"
-
-
-def valid_anonymous_id(value):
-    return bool(re.fullmatch(r"KP-[A-Z0-9]{10}", value or ""))
+    brand_header()
+    safety_note()
 
 
 def get_anonymous_id():
-    if "anonymous_id" in st.session_state:
-        anonymous_id = st.session_state.anonymous_id
-
-        if st.query_params.get("study") != anonymous_id:
-            st.query_params["study"] = anonymous_id
-
-        return anonymous_id
-
     query_id = st.query_params.get("study")
 
-    if valid_anonymous_id(query_id):
-        anonymous_id = query_id
-    else:
-        anonymous_id = create_anonymous_id()
-        st.query_params["study"] = anonymous_id
+    if "anonymous_id" not in st.session_state:
+        st.session_state.anonymous_id = query_id if valid_anonymous_id(query_id) else create_anonymous_id()
 
-    st.session_state.anonymous_id = anonymous_id
-    return anonymous_id
+    if "study" in st.query_params:
+        del st.query_params["study"]
+
+    return st.session_state.anonymous_id
 
 
 def reset_session_data():
-    st.session_state.chat_history = []
+    st.session_state.chat = create_chat()
     st.session_state.before_ratings = None
     st.session_state.interaction_id = None
+    st.session_state.chat_phase = "before"
+    st.session_state.session_results = None
 
 
 def initialise_session_data():
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
-
-    if "before_ratings" not in st.session_state:
-        st.session_state.before_ratings = None
-
-    if "interaction_id" not in st.session_state:
-        st.session_state.interaction_id = None
+    if "chat" not in st.session_state:
+        reset_session_data()
 
     if "goals" not in st.session_state:
         st.session_state.goals = []
 
-    if "evaluation_saved" not in st.session_state:
-        st.session_state.evaluation_saved = False
+
+def switch_identity(code):
+    st.session_state.anonymous_id = code
+    st.session_state.goals = []
+    reset_session_data()
+    for key in list(st.session_state):
+        if key.startswith(("support_", "journal_", "habit_", "wind_down_")):
+            del st.session_state[key]
 
 
 def sidebar(anonymous_id):
-    st.sidebar.title("KōreroPal")
+    st.sidebar.image(str(STATIC / "logo.png"), width=110)
+    st.sidebar.caption("Your reflections, journal and check-ins.")
 
-    if groq_available():
-        st.sidebar.success("AI service active")
-    else:
-        st.sidebar.info("Safe fallback mode active")
+    with st.sidebar.expander("Your private recovery code"):
+        st.caption(
+            "Save this somewhere private to return to your ratings. Anyone with this code can "
+            "open them. A bookmark alone won't restore them.",
+        )
+        st.code(anonymous_id, wrap_lines=True)
+        with st.form("restore_code_form"):
+            code = st.text_input("Use an existing code", type="password", max_chars=43)
+            restore = st.form_submit_button("Restore my ratings")
+        if restore:
+            code = code.strip().upper()
+            if valid_anonymous_id(code):
+                switch_identity(code)
+                st.rerun()
+            else:
+                st.error("That code doesn't look right. Please copy the complete KP- code.")
+        if st.button("Start with a new code"):
+            switch_identity(create_anonymous_id())
+            st.rerun()
 
-    st.sidebar.caption(f"Data storage: {database_name()}")
+    with st.sidebar.expander("About this space"):
+        st.caption(
+            "Student-built university portfolio project. Not affiliated with any university, "
+            "government agency, or official support service.",
+        )
+        st.caption("AI reflection configured" if groq_available() else "Built-in reflection mode")
+        st.caption(f"Ratings storage: {database_name()}")
 
-    st.sidebar.subheader("Anonymous study code")
-    st.sidebar.code(anonymous_id)
-    st.sidebar.caption(
-        "Bookmark this page or save this code to keep your anonymous results linked over time. "
-        "Do not replace it with your name or student ID."
+    st.sidebar.markdown("**Need a person to talk to?**")
+    st.sidebar.page_link(
+        st.session_state.pages["resources"],
+        label="Find real support",
+        icon=":material/favorite:",
     )
-
-    if st.sidebar.button("Create a new anonymous code"):
-        anonymous_id = create_anonymous_id()
-        st.session_state.anonymous_id = anonymous_id
-        st.query_params["study"] = anonymous_id
-        reset_session_data()
-        st.rerun()
-
-
-def home_page():
-    st.header("Welcome")
-    st.write(
-        "KōreroPal is a student-built wellbeing reflection project. It combines anonymous "
-        "Likert tracking with a supportive AI conversation and practical coping strategies."
-    )
-
-    st.subheader("What you can do")
-    st.write("- Record mood, stress, and energy on 1–7 scales")
-    st.write("- Compare ratings before and after an AI reflection session")
-    st.write("- Track your anonymous results over time")
-    st.write("- Rate whether KōreroPal felt relevant and supportive")
-    st.write("- Use coping strategies and session-only goals")
-
-    st.markdown(
-        """
-        <div class="privacy-note">
-        <b>Data design:</b> KōreroPal does not ask for a name, email, student ID, phone number,
-        exact address, journal entry, or demographic information. Chat text and goals are not
-        written to the KōreroPal database. Only anonymous 1–7 ratings and timestamps are saved.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    st.info(
-        "When AI mode is active, your current message, recent session conversation, and up to three "
-        "recent anonymous check-ins, including their timestamps and ratings, are sent to Groq to generate a response. "
-        "Do not enter identifying or highly private information."
-    )
+    st.sidebar.caption("Chat and goals stay in this session. Saved ratings stay linked to your private code.")
 
 
 def checkin_page(anonymous_id):
-    st.header("Daily Check-in")
+    intro(
+        "A MOMENT FOR YOU",
+        "How are you arriving today?",
+        "Notice where you are, without needing to be anywhere else. Your own ratings, at your own"
+        " pace.",
+    )
     st.write(
         "This saves only three anonymous 1–7 ratings. No journal text, sleep data, name, or contact details are collected."
     )
@@ -288,7 +163,8 @@ def checkin_page(anonymous_id):
 
 
 def start_reflection_form():
-    st.subheader("1. Rate how you feel before chatting")
+    st.subheader("First, a quick check-in")
+    st.write("There is no right answer. These starting ratings help you notice any change at the end.")
 
     with st.form("before_chat_form"):
         mood = st.slider(
@@ -314,7 +190,7 @@ def start_reflection_form():
             "check-ins, including their timestamps and ratings, may be sent to Groq when AI mode is active."
         )
 
-        submitted = st.form_submit_button("Start reflection")
+        submitted = st.form_submit_button("Start reflection", type="primary")
 
     if submitted:
         if not consent:
@@ -327,100 +203,85 @@ def start_reflection_form():
             "energy": energy,
         }
         st.session_state.interaction_id = str(uuid.uuid4())
-        st.session_state.chat_history = []
+        st.session_state.chat = create_chat()
+        st.session_state.chat_phase = "chat"
         st.rerun()
 
 
 def display_chat_history():
-    """Display the current session conversation."""
+    """Display the current session conversation without loading external content."""
 
-    for item in st.session_state.chat_history:
-        role = item.get("role", "assistant")
-        content = item.get("content", "")
+    for item in st.session_state.chat["history"]:
+        role = item["role"]
+        with st.chat_message(role, avatar=str(STATIC / "logo.png") if role == "assistant" else ":material/person:"):
+            if item.get("risk") == "crisis":
+                st.markdown(crisis_response())
+            else:
+                st.text(item["content"])
 
-        if role == "user":
-            with st.chat_message("Me"):
-                st.markdown(f"**Me:**\n\n{content}")
 
-        else:
-            with st.chat_message("KōreroPal", avatar="🌿"):
-                st.markdown(f"**KōreroPal:**\n\n{content}")
+def end_chat():
+    if not st.session_state.chat["busy"]:
+        st.session_state.chat_phase = "after"
 
 
 def chat_form(anonymous_id):
-    """Handle the KōreroPal reflection conversation."""
+    """Keep the conversation and its input together in one space."""
 
-    st.subheader("2. Talk with KōreroPal")
+    chat = st.session_state.chat
+    with st.container(border=True):
+        title, action = st.columns([3, 1])
+        title.subheader("Your reflection space")
+        action.button("End chat", on_click=end_chat, disabled=chat["busy"], width="stretch")
+        st.caption(
+            "Talk for a while, or just a moment. Choose End chat, or type it, when you're ready "
+            "to reflect.",
+        )
+        with st.container(height=420):
+            if not chat["history"]:
+                with st.chat_message("assistant", avatar=str(STATIC / "logo.png")):
+                    st.write(
+                        "What's taking up space in your mind today? You can start wherever feels easiest.",
+                    )
+            display_chat_history()
 
-    st.caption(
-        "Your conversation is retained only for the current session and is not "
-        "stored in the KōreroPal database. Please avoid entering names, contact "
-        "details, student IDs, or exact locations."
-    )
+        turn = len(chat["history"]) // 2
+        input_key = f"support_{st.session_state.interaction_id}_{turn}"
+        message = st.chat_input(
+            "What's on your mind?",
+            key=input_key,
+            max_chars=MAX_MESSAGE_LENGTH,
+            disabled=chat["busy"],
+        )
+        st.caption(f"{turn} of {MAX_CHAT_TURNS} turns · Chat text is not saved to the ratings database")
 
-    display_chat_history()
-
-    message = st.bottom.chat_input(
-        "Share what's on your mind...",
-        key="support_chat_input",
-    )
-
-    if not message:
+    if not message or not message.strip():
         return
 
-    message = message.strip()
+    if is_end_chat(message):
+        end_chat()
+        st.rerun()
 
-    if not message:
-        return
+    # Only load rating context once for this submitted turn.
+    recent_context = ""
+    if assess_risk(message) != "crisis":
+        try:
+            checkins = load_daily_checkins(anonymous_id)
+            recent_context = recent_context_from_checkins(checkins)
+        except DatabaseConnectionError:
+            pass
 
     try:
-        checkins = load_daily_checkins(anonymous_id)
-        recent_context = recent_context_from_checkins(checkins)
-
-    except DatabaseConnectionError as error:
-        st.warning(
-            f"{error} KōreroPal can continue without recent check-in context."
-        )
-        recent_context = ""
-
-    previous_history = st.session_state.chat_history.copy()
-
-    st.session_state.chat_history.append(
-        {
-            "role": "user",
-            "content": message,
-        }
-    )
-
-    with st.chat_message("Me"):
-        st.markdown(f"**Me:**\n\n{message}")
-
-    with st.chat_message("KōreroPal", avatar="🌿"):
-        with st.spinner("KōreroPal is reflecting..."):
-            response, risk = generate_support_response(
-                message,
-                recent_context=recent_context,
-                conversation_history=previous_history,
-            )
-
-        st.markdown(f"**KōreroPal:**\n\n{response}")
-
-    st.session_state.chat_history.append(
-        {
-            "role": "assistant",
-            "content": response,
-            "risk": risk,
-        }
-    )
-
-    st.rerun()
+        with st.spinner("Taking a moment to reflect..."):
+            send_message(chat, input_key, message, recent_context)
+        st.rerun()
+    except ValueError as error:
+        st.warning(str(error))
 
 
 def finish_reflection_form(anonymous_id):
-    if not st.session_state.chat_history:
-        return
-
-    st.subheader("3. Rate the session")
+    st.subheader("How are you feeling now?")
+    st.caption("These are your own ratings, not a diagnosis or a score assigned by AI.")
     st.write(
         "Submitting this form saves only these anonymous ratings. Your conversation is not included."
     )
@@ -463,13 +324,13 @@ def finish_reflection_form(anonymous_id):
             4,
         )
 
-        submitted = st.form_submit_button("Save anonymous evaluation")
+        submitted = st.form_submit_button("Save and see my reflection", type="primary")
 
     if submitted:
         before = st.session_state.before_ratings
 
         try:
-            save_evaluation_session(
+            saved = save_evaluation_session(
                 st.session_state.interaction_id,
                 anonymous_id,
                 before["mood"],
@@ -482,8 +343,12 @@ def finish_reflection_form(anonymous_id):
                 response_relevance,
                 would_use_again,
             )
-            reset_session_data()
-            st.session_state.evaluation_saved = True
+            st.session_state.session_results = {
+                "before": {name: saved[f"{name}_before"] for name in ["mood", "stress", "energy"]},
+                "after": {name: saved[f"{name}_after"] for name in ["mood", "stress", "energy"]},
+            }
+            st.session_state.chat = create_chat()
+            st.session_state.chat_phase = "complete"
             st.rerun()
         except DatabaseConnectionError as error:
             st.error(str(error))
@@ -491,47 +356,86 @@ def finish_reflection_form(anonymous_id):
             st.error("The evaluation could not be saved. Please try again.")
 
 
-def chat_page(anonymous_id):
-    st.header("AI Support Chat")
-
-    if st.session_state.evaluation_saved:
-        st.success("Anonymous session evaluation saved. The chat has been cleared.")
-        st.session_state.evaluation_saved = False
+def reflection_results():
+    st.subheader("A moment to notice")
+    st.success("Your ratings are saved. The conversation has been cleared.")
+    result = st.session_state.session_results
+    columns = st.columns(3)
+    for column, name in zip(columns, ["mood", "stress", "energy"]):
+        before = result["before"][name]
+        after = result["after"][name]
+        column.metric(
+            name.title(),
+            f"{after}/7",
+            f"{after - before:+} from {before}/7",
+            delta_color="inverse" if name == "stress" else "normal",
+        )
     st.write(
-        "This page measures mood, stress, and energy before and after a reflection session, "
-        "then asks three 1–7 questions about KōreroPal's performance."
+        "Feeling the same, better, or worse are all things worth noticing. These ratings describe"
+        " this moment; they don't measure your worth or prove that the conversation caused a "
+        "change.",
     )
-
-    if groq_available():
-        st.info(
-            "AI mode is active. Your current message, recent session conversation, and up to three recent anonymous "
-            "check-ins, including their timestamps and ratings, are sent to Groq. KōreroPal does not save the chat text."
-        )
-    else:
-        st.info(
-            "The external AI service is not configured, so KōreroPal will use its built-in response system."
-        )
-
-    if st.session_state.before_ratings is None:
-        start_reflection_form()
-        return
-
-    before = st.session_state.before_ratings
-    st.caption(
-        f"Session-only starting ratings: mood {before['mood']}/7, "
-        f"stress {before['stress']}/7, energy {before['energy']}/7"
+    st.page_link(st.session_state.pages["goals"], label="Choose one small next step", icon=":material/flag:")
+    st.page_link(
+        st.session_state.pages["dashboard"],
+        label="See your reflections over time",
+        icon=":material/monitoring:",
     )
-
-    chat_form(anonymous_id)
-    finish_reflection_form(anonymous_id)
-
-    if st.button("Cancel and clear this session"):
+    if st.button("Start another reflection", type="primary"):
         reset_session_data()
         st.rerun()
 
 
+def chat_page(anonymous_id):
+    intro(
+        "REFLECTION",
+        "Talk it through",
+        "Check in before you start, then chat at your own pace. Choose End chat when you’re ready"
+        " to review how you feel.",
+    )
+    phase = st.session_state.chat_phase
+    steps = {
+        "before": "① Check in   →   ② Chat   →   ③ Reflect",
+        "chat": "✓ Checked in   →   ② Chat   →   ③ Reflect",
+        "after": "✓ Checked in   →   ✓ Chat ended   →   ③ Reflect",
+        "complete": "✓ Check-in   →   ✓ Conversation   →   ✓ Reflection saved",
+    }
+    st.markdown(f'<div class="step-line">{steps[phase]}</div>', unsafe_allow_html=True)
+
+    if phase == "before":
+        with st.container(border=True):
+            start_reflection_form()
+        return
+
+    if phase == "complete":
+        reflection_results()
+        return
+
+    if phase == "chat":
+        if not groq_available():
+            st.info("Built-in mode: simple reflection prompts are available while AI is not configured.")
+        chat_form(anonymous_id)
+    else:
+        with st.expander("Review this conversation"):
+            display_chat_history()
+        finish_reflection_form(anonymous_id)
+        if st.button("Return to chat"):
+            st.session_state.chat_phase = "chat"
+            st.rerun()
+
+    with st.expander("Clear this reflection"):
+        st.caption("This clears the conversation and unsaved ratings from this session.")
+        if st.button("Discard and start again", disabled=st.session_state.chat["busy"]):
+            reset_session_data()
+            st.rerun()
+
+
 def my_dashboard_page(anonymous_id):
-    st.header("My Anonymous Dashboard")
+    intro(
+        "NOTICE THE PATTERNS",
+        "Your wellbeing over time.",
+        "Your own ratings, at your own pace. A change is something to notice, not a judgement.",
+    )
 
     try:
         checkins = load_daily_checkins(anonymous_id)
@@ -541,7 +445,12 @@ def my_dashboard_page(anonymous_id):
         return
 
     if checkins.empty and evaluations.empty:
-        st.info("No anonymous ratings have been saved for this study code yet.")
+        st.info("Your story starts with a check-in. Once you save some ratings, you'll see them here.")
+        st.page_link(
+            st.session_state.pages["checkin"],
+            label="Take your first check-in",
+            icon=":material/arrow_forward:",
+        )
         return
 
     if not checkins.empty:
@@ -643,52 +552,6 @@ def my_dashboard_page(anonymous_id):
         )
 
 
-def project_results_page():
-    st.header("Anonymous Project Results")
-    st.write(
-        "This page shows aggregate results only. It does not display chat text, names, contact details, or anonymous study codes."
-    )
-
-    try:
-        checkins = load_daily_checkins()
-        evaluations = load_evaluation_sessions()
-    except DatabaseConnectionError as error:
-        st.error(str(error))
-        return
-
-    col1, col2 = st.columns(2)
-    col1.metric("Anonymous daily check-ins", len(checkins))
-    col2.metric("Completed AI evaluations", len(evaluations))
-
-    if evaluations.empty:
-        st.info("No completed AI evaluations yet.")
-        return
-
-    evaluations = add_change_columns(evaluations)
-
-    st.subheader("Average change after using KōreroPal")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Mood", f"{evaluations['mood_change'].mean():+.2f}")
-    col2.metric("Stress improvement", f"{evaluations['stress_improvement'].mean():+.2f}")
-    col3.metric("Energy", f"{evaluations['energy_change'].mean():+.2f}")
-
-    st.subheader("Average companion ratings")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Felt heard", f"{evaluations['felt_heard'].mean():.2f}/7")
-    col2.metric(
-        "Response relevance",
-        f"{evaluations['response_relevance'].mean():.2f}/7",
-    )
-    col3.metric(
-        "Would use again",
-        f"{evaluations['would_use_again'].mean():.2f}/7",
-    )
-
-    st.caption(
-        "These results are descriptive project analytics. They do not establish clinical effectiveness or causation."
-    )
-
-
 def toolkit_page():
     st.header("Coping Toolkit")
 
@@ -700,7 +563,15 @@ def toolkit_page():
 
 
 def goals_page():
-    st.header("Small Goals")
+    intro(
+        "MAKE ROOM FOR WHAT MATTERS",
+        "Small steps, at your pace.",
+        "Choose an action that fits your life today. It doesn’t have to be impressive to be worth"
+        " doing.",
+    )
+    website.habits_section()
+    st.divider()
+    st.subheader("Something you want to work towards")
     st.write(
         "Goals are kept only in this active session. They are not written to the database and disappear when the session ends."
     )
@@ -709,10 +580,13 @@ def goals_page():
         goal = st.text_input(
             "Add a small goal",
             placeholder="Example: Do one practice question",
+            max_chars=200,
         )
         submitted = st.form_submit_button("Add goal")
 
-    if submitted and goal.strip():
+    if submitted and len(st.session_state.goals) >= 20:
+        st.info("You have 20 goals in this session. Try choosing one to focus on for now.")
+    elif submitted and goal.strip():
         st.session_state.goals.append(
             {
                 "id": str(uuid.uuid4()),
@@ -723,12 +597,12 @@ def goals_page():
         st.success("Session-only goal added.")
 
     if not st.session_state.goals:
-        st.info("No session-only goals yet.")
+        st.info("No goals yet. Start with something small enough to do today.")
         return
 
     for item in st.session_state.goals:
         col1, col2 = st.columns([4, 1])
-        col1.write(f"{item['goal']} ({item['status']})")
+        col1.text(f"{item['goal']} ({item['status']})")
 
         if item["status"] != "complete":
             if col2.button("Done", key=f"done_{item['id']}"):
@@ -737,7 +611,11 @@ def goals_page():
 
 
 def resources_page():
-    st.header("NZ Support Resources")
+    intro(
+        "PEOPLE YOU CAN TURN TO",
+        "You don’t have to do this alone.",
+        "KōreroPal is not a crisis service. These New Zealand services can help you reach a person.",
+    )
 
     for resource in NZ_RESOURCES:
         st.subheader(resource["name"])
@@ -746,7 +624,16 @@ def resources_page():
 
 
 def privacy_page():
-    st.header("Privacy and About")
+    intro(
+        "PRIVACY, PLAINLY EXPLAINED",
+        "Know what stays, and what goes.",
+        "Last updated 24 October 2026. Your words, ratings, and recovery code are handled differently.",
+    )
+    st.info(
+        "Your journal, habits, goals, and chat are held in active server-session memory. Journal "
+        "writing is never sent to AI or saved to the ratings database. Downloads stay on your "
+        "device.",
+    )
 
     st.subheader("What KōreroPal saves")
     st.write("- Anonymous study code")
@@ -763,7 +650,8 @@ def privacy_page():
 
     st.subheader("Client-side and session-only data")
     st.write(
-        "The anonymous study code is placed in the page URL so the same browser bookmark can reopen the same anonymous record. "
+        "Your private recovery code opens your saved ratings. Keep it private. New codes are not placed in URLs. "
+        "Older bookmarked codes are accepted and removed from the visible URL when opened, but may remain in browser or hosting history. "
         "Dashboard download buttons save a local CSV copy through the browser. The current chat, temporary before-session ratings, "
         "and goals are held only in active app-session memory and are not written to the study database."
     )
@@ -775,6 +663,20 @@ def privacy_page():
         "Users should not enter identifying or highly private details. Hosting and AI providers may process technical metadata under their own terms."
     )
 
+    st.subheader("Cookies and connection data")
+    st.write(
+        "The app uses necessary session and security mechanisms. Streamlit usage telemetry is "
+        "disabled, and this project adds no advertising or optional analytics scripts. Hosting "
+        "and AI providers may process technical metadata under their own policies. There are no "
+        "optional tracking cookies to opt into here.",
+    )
+    st.subheader("Retention and deletion")
+    st.write(
+        "The current portfolio version has no automatic expiry or self-service deletion for saved"
+        " ratings. An owner-managed retention and private deletion process must be established "
+        "before participant recruitment. Do not post your recovery code on the public issue "
+        "tracker.",
+    )
     st.subheader("Study limitations")
     st.write(
         "KōreroPal's ratings are anonymous self-report project data. The results are descriptive and cannot show that KōreroPal caused a change in wellbeing. "
@@ -785,86 +687,62 @@ def privacy_page():
 def main():
     st.set_page_config(
         page_title=APP_NAME,
-        page_icon="💬",
+        page_icon=str(STATIC / "logo.png"),
         layout="centered",
+        initial_sidebar_state="collapsed",
     )
 
-    init_db()
+    try:
+        init_db()
+    except DatabaseConnectionError as error:
+        st.error(str(error))
+        st.stop()
     initialise_session_data()
-
     anonymous_id = get_anonymous_id()
 
-    pages = {
-        "": [
-            st.Page(
-                home_page,
-                title="Home",
-                icon=":material/home:",
-                url_path="home",
-                default=True,
-            ),
-            st.Page(
-                lambda: checkin_page(anonymous_id),
-                title="Check-in",
-                icon=":material/check_circle:",
-                url_path="check-in",
-            ),
-            st.Page(
-                lambda: chat_page(anonymous_id),
-                title="Support Chat",
-                icon=":material/chat:",
-                url_path="support",
-            ),
-            st.Page(
-                lambda: my_dashboard_page(anonymous_id),
-                title="Dashboard",
-                icon=":material/monitoring:",
-                url_path="dashboard",
-            ),
-        ],
-        "Explore": [
-            st.Page(
-                project_results_page,
-                title="Project Results",
-                icon=":material/analytics:",
-                url_path="results",
-            ),
-            st.Page(
-                toolkit_page,
-                title="Coping Toolkit",
-                icon=":material/self_improvement:",
-                url_path="toolkit",
-            ),
-            st.Page(
-                goals_page,
-                title="Small Goals",
-                icon=":material/flag:",
-                url_path="goals",
-            ),
-            st.Page(
-                resources_page,
-                title="NZ Resources",
-                icon=":material/health_and_safety:",
-                url_path="resources",
-            ),
-            st.Page(
-                privacy_page,
-                title="Privacy & About",
-                icon=":material/info:",
-                url_path="about",
-            ),
-        ],
-    }
+    definitions = [
+        ("home", website.home_page, "Home", "home", True, ""),
+        ("practices", website.practices_page, "Practices", "practices", False, ""),
+        ("guides", website.guides_page, "NZ resources", "guides", False, ""),
+        ("chat", lambda: chat_page(anonymous_id), "Reflection", "support", False, ""),
+        ("about", website.about_page, "About", "about", False, ""),
+        ("checkin", lambda: checkin_page(anonymous_id), "Check-in", "check-in", False, "Your space"),
+        ("dashboard", lambda: my_dashboard_page(anonymous_id), "Your progress", "dashboard", False, "Your space"),
+        ("journal", website.journal_page, "Private journal", "journal", False, "Your space"),
+        ("goals", goals_page, "Small habits", "goals", False, "Your space"),
+        ("resources", resources_page, "Find support", "resources", False, "Help"),
+        ("contact", website.contact_page, "Contact & feedback", "contact", False, "Help"),
+        ("faq", website.faq_page, "Common questions", "faq", False, "Help"),
+        ("privacy", privacy_page, "Privacy", "privacy", False, "Information"),
+        ("terms", website.terms_page, "Terms of use", "terms", False, "Information"),
+        ("accessibility", website.accessibility_page, "Accessibility", "accessibility", False, "Information"),
+        ("toolkit", website.practices_page, "Coping toolkit", "toolkit", False, "Information"),
+    ]
+    pages = {}
+    groups = {}
+    for key, function, title, path, default, group in definitions:
+        page = st.Page(
+            function,
+            title=title,
+            url_path=path,
+            default=default,
+            visibility="hidden" if group == "Information" else "visible",
+        )
+        pages[key] = page
+        groups.setdefault(group, []).append(page)
 
-    navigation = st.navigation(
-        pages,
-        position="top",
-    )
+    for slug in LEGACY_GUIDE_PATHS:
+        page = st.Page(website.legacy_guide_page, title="NZ resources", url_path=slug, visibility="hidden")
+        pages[slug] = page
+        groups["Information"].append(page)
 
+    st.session_state.pages = pages
+    navigation = st.navigation(groups, position="top")
+    st.set_page_config(page_title=f"{navigation.title} · {APP_NAME}", initial_sidebar_state="collapsed")
     page_header()
     sidebar(anonymous_id)
-
     navigation.run()
+    footer()
 
 
 if __name__ == "__main__":

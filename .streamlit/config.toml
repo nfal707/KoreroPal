@@ -1,9 +1,19 @@
 [theme]
 base = "light"
-primaryColor = "#2E7D6B"
-backgroundColor = "#F7FAF8"
-secondaryBackgroundColor = "#EEF5F1"
-textColor = "#1D2B24"
+primaryColor = "#526646"
+backgroundColor = "#F8F7F2"
+secondaryBackgroundColor = "#E7ECDF"
+textColor = "#2D3B32"
 
 [server]
 headless = true
+enableStaticServing = true
+
+enableCORS = true
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showErrorDetails = "none"

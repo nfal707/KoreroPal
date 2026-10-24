@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+* {
+    box-sizing:border-box
+}
+body {
+    margin:0;
+    color:#2c4235;
+    font:15px/1.5 system-ui,sans-serif;
+    background:transparent
+}
+.practice {
+    max-width:600px;
+    margin:auto;
+    text-align:center;
+    padding:12px 16px
+}
+label {
+    font-size:13px
+}
+select {
+    font:inherit;
+    border:1px solid #9ba68d;
+    border-radius:6px;
+    background:#f9faf4;
+    padding:6px;
+    color:#2c4235
+}
+.orb-stage {
+    height:210px;
+    display:grid;
+    place-items:center;
+    position:relative
+}
+.orb {
+    width:140px;
+    height:140px;
+    border-radius:50%;
+    background:#ccd8be;
+    border:1px solid #a6b596;
+    box-shadow:0 0 0 17px #dfe6d5,0 0 0 34px #ebefe3;
+    transition:transform 250ms linear;
+    position:absolute
+}
+.words {
+    z-index:1;
+    position:relative;
+    pointer-events:none
+}
+.phase {
+    font:24px Georgia,serif;
+    margin:0
+}
+.time {
+    font-variant-numeric:tabular-nums;
+    font-size:13px;
+    margin:6px 0
+}
+button {
+    font:600 14px system-ui;
+    min-height:44px;
+    padding:10px 22px;
+    border-radius:6px;
+    border:1px solid #596d4d;
+    color:#2c4235;
+    background:transparent;
+    cursor:pointer;
+    margin:3px
+}
+button.primary {
+    background:#526447;
+    color:white
+}
+button:disabled {
+    opacity:.5;
+    cursor:default
+}
+button:focus-visible,select:focus-visible {
+    outline:3px solid #7e674c;
+    outline-offset:3px
+}
+.note {
+    font-size:12px;
+    color:#4e604b;
+    margin:12px auto 0;
+    max-width:360px
+}
+@media(prefers-reduced-motion:reduce) {
+    .orb {
+        transition:none!important;
+        transform:none!important
+    }
+}
+</style></head><body><section class="practice" aria-label="Guided breathing timer">
+<label for="duration">Your time </label><select id="duration"><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select>
+<div class="orb-stage"><div class="orb" aria-hidden="true"></div><div class="words"><p class="phase" aria-live="polite">Settle in</p><p class="time" role="timer" aria-label="Time remaining">1:00</p></div></div>
+<div><button class="primary" id="start">Begin</button><button id="reset" disabled>Reset</button></div>
+<p class="note">Breathe gently. Follow your own comfortable pace; stop if you feel uncomfortable. No breath holds.</p>
+</section><script>
+const start=document.querySelector('#start'),reset=document.querySelector('#reset'),duration=document.querySelector('#duration'),phase=document.querySelector('.phase'),time=document.querySelector('.time'),orb=document.querySelector('.orb');
+let elapsed=0,started=0,running=false,frame=0,lastPhase='';
+function seconds() {
+    return Number(duration.value)
+}
+function render() {
+    let now=elapsed+(running?(performance.now()-started)/1000:0);
+    let left=Math.max(0,Math.ceil(seconds()-now));
+    time.textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+    if(left===0) {
+        running=false;
+        elapsed=seconds();
+        start.textContent='Begin again';
+        duration.disabled=false;
+        phase.textContent='Take your time';
+        orb.style.transform='scale(1)';
+        return
+    }
+    if(running) {
+        let part=now%10;
+        let next=part<5?'Breathe in':'Breathe out';
+        if(next!==lastPhase) {
+            phase.textContent=next;
+            lastPhase=next
+        }
+        orb.style.transform='scale('+(1+(part<5?part/5:(10-part)/5)*.2)+')';
+        frame=requestAnimationFrame(render)
+    }
+}
+function pause() {
+    elapsed+=(performance.now()-started)/1000;
+    running=false;
+    cancelAnimationFrame(frame);
+    start.textContent='Continue';
+    phase.textContent='Paused'
+}
+start.addEventListener('click',()=> {
+    if(running) {
+        pause();return
+    }
+    if(elapsed>=seconds())elapsed=0;started=performance.now();running=true;lastPhase='';start.textContent='Pause';reset.disabled=false;duration.disabled=true;render()
+}
+);
+reset.addEventListener('click',()=> {
+    cancelAnimationFrame(frame);elapsed=0;running=false;lastPhase='';duration.disabled=false;start.textContent='Begin';reset.disabled=true;phase.textContent='Settle in';orb.style.transform='scale(1)';render()
+}
+);
+duration.addEventListener('change',()=> {
+    elapsed=0;render()
+}
+);
+document.addEventListener('visibilitychange',()=> {
+    if(document.hidden&&running)pause()
+}
+);
+</script></body></html>
