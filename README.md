@@ -1,5 +1,9 @@
 # KōreroPal
 
+KōreroPal is an independent wellbeing reflection app developed by Nick Falkov, combining Computer Science, Psychology and AI.
+
+[Open KōreroPal](https://koreropal.streamlit.app/)
+
 ## Interface and reflection update
 
 The website now has a consistent olive, sage and warm ivory design, with a transparent version of my original logo and a subtle woven edge. The logo is cleaned from the supplied artwork using ordinary image processing. No AI-generated photos or media are used. The woven SVG is an original geometric design inspired by interlacing flax strips, rather than a copy of the reference artwork.

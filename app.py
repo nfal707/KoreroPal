@@ -686,10 +686,21 @@ def privacy_page():
 
 def main():
     st.set_page_config(
-        page_title=APP_NAME,
+        page_title="KōreroPal | Wellbeing App by Nick Falkov",
         page_icon=str(STATIC / "logo.png"),
         layout="centered",
         initial_sidebar_state="collapsed",
+        menu_items={
+            "About": (
+                "### KōreroPal\n\n"
+                "An independent wellbeing reflection application combining "
+                "Computer Science, Psychology and AI.\n\n"
+                "**Developed by:** Nick Falkov\n\n"
+                "**Technologies:** Python, Streamlit, Groq AI, SQLite and Supabase\n\n"
+                "**Website:** https://koreropal.streamlit.app/\n\n"
+                "**Source code:** https://github.com/nfal707/KoreroPal"
+            ),
+        },
     )
 
     try:
@@ -738,7 +749,14 @@ def main():
 
     st.session_state.pages = pages
     navigation = st.navigation(groups, position="top")
-    st.set_page_config(page_title=f"{navigation.title} · {APP_NAME}", initial_sidebar_state="collapsed")
+    st.set_page_config(
+        page_title=(
+            "KōreroPal | Wellbeing App by Nick Falkov"
+            if navigation == pages["home"]
+            else f"{navigation.title} | KōreroPal by Nick Falkov"
+        ),
+        initial_sidebar_state="collapsed",
+    )
     page_header()
     sidebar(anonymous_id)
     navigation.run()
