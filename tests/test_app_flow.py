@@ -67,6 +67,20 @@ def test_end_chat_command_does_not_call_ai(app, monkeypatch):
     assert app.chat_input
 
 
+def test_creator_questions_stay_correct_through_chat(app, monkeypatch):
+    monkeypatch.setattr(ai, "groq_available", lambda: True)
+    monkeypatch.setattr(ai, "call_groq", lambda *args: pytest.fail("Creator question reached provider"))
+    start_chat(app)
+    for message in ["who created koreropal", "a small group of students?", "not just one student?"]:
+        app.chat_input[0].set_value(message).run()
+        assert not app.exception
+        answer = app.session_state.chat["history"][-1]
+        assert answer["role"] == "assistant"
+        assert "Nick Falkov" in answer["content"]
+        assert "built by one student" in answer["content"]
+        assert not app.slider
+
+
 def test_consent_and_legacy_link(app):
     button(app, "Start a reflection").click().run()
     button(app, "Start reflection").click().run()

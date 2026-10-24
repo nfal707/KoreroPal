@@ -59,3 +59,65 @@ def test_normal_fallback_has_no_repeated_disclaimer(monkeypatch):
     assert "Reminder:" not in response
     assert "not configured" not in response
     assert "started" in response
+
+
+@pytest.mark.parametrize("message", [
+    "who created koreropal", "Who created KōreroPal?", "WHO BUILT KŌREROPAL?",
+    "Who made you?", "Who developed this app?", "Who's your creator?",
+    "Who is behind KōreroPal?",
+])
+@pytest.mark.parametrize("available", [True, False])
+def test_creator_answer_does_not_depend_on_provider(monkeypatch, message, available):
+    monkeypatch.setattr(ai, "groq_available", lambda: available)
+    provider = MagicMock(return_value="A group of classmates built it.")
+    monkeypatch.setattr(ai, "call_groq", provider)
+    response, risk = ai.generate_support_response(message)
+    assert "Nick Falkov" in response
+    assert "built by one student" in response
+    assert risk == "normal"
+    provider.assert_not_called()
+
+
+def test_creator_follow_ups_correct_old_team_claims(monkeypatch):
+    provider = MagicMock(return_value="A small team built it.")
+    monkeypatch.setattr(ai, "call_groq", provider)
+    history = [
+        {"role": "user", "content": "who created koreropal"},
+        {"role": "assistant", "content": "A small group of students created it."},
+    ]
+    for message in ["a small group of students?", "not just one student?", "Are you sure?"]:
+        response, _ = ai.generate_support_response(message, conversation_history=history)
+        assert "Nick Falkov" in response
+        assert "built by one student" in response
+        assert "?" not in response
+        history.extend([
+            {"role": "user", "content": message},
+            {"role": "assistant", "content": response},
+        ])
+    provider.assert_not_called()
+
+
+@pytest.mark.parametrize("history", [
+    [],
+    [{"role": "user", "content": "My group assignment is stressful"}],
+    [
+        {"role": "user", "content": "Who created KōreroPal?"},
+        {"role": "assistant", "content": ai.CREATOR_FACTS},
+        {"role": "user", "content": "I'm worried about a group assignment"},
+    ],
+])
+def test_team_follow_up_does_not_interrupt_unrelated_reflection(monkeypatch, history):
+    provider = MagicMock(return_value="What is happening with your group?")
+    monkeypatch.setattr(ai, "groq_available", lambda: True)
+    monkeypatch.setattr(ai, "call_groq", provider)
+    response, _ = ai.generate_support_response("a small group of students?", conversation_history=history)
+    assert response == "What is happening with your group?"
+    provider.assert_called_once()
+
+
+def test_creator_question_does_not_override_crisis_handling(monkeypatch):
+    handler = MagicMock(return_value="Unexpected project answer")
+    monkeypatch.setattr(ai, "creator_response", handler)
+    _, risk = ai.generate_support_response("Who created KōreroPal? I want to hurt myself")
+    assert risk == "crisis"
+    handler.assert_not_called()
