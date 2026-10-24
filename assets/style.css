@@ -18,7 +18,7 @@
 }
 .stMain {
     --weave-width: 86px;
-    background-image: linear-gradient(to right, #f8f7f2bf, #f8f7f2 var(--weave-width)), url('/app/static/weave.svg');
+    background-image: linear-gradient(to right, #f8f7f230, #f8f7f2 var(--weave-width)), url('/app/static/weave.svg');
     background-size: 100% 100%, 160px 640px;
     background-position: left top;
     background-repeat: no-repeat, repeat-y;
