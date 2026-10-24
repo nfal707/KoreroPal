@@ -1,6 +1,8 @@
 from html import escape
 from pathlib import Path
 from urllib.parse import quote
+from base64 import b64encode
+from functools import lru_cache
 
 import streamlit as st
 
@@ -9,10 +11,19 @@ ROOT = Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
 
 
+@lru_cache(maxsize=8)
 def asset_url(name):
-    base = st.get_option("server.baseUrlPath").strip("/")
-    prefix = f"/{quote(base, safe='/')}" if base else ""
-    return f"{prefix}/app/static/{name}"
+    path = STATIC / name
+
+    if name == "logo.png":
+        encoded = b64encode(path.read_bytes()).decode("ascii")
+        return f"data:image/png;base64,{encoded}"
+
+    if name == "weave.svg":
+        encoded = quote(path.read_text(encoding="utf-8"), safe="")
+        return f"data:image/svg+xml,{encoded}"
+
+    raise ValueError(f"Unsupported asset: {name}")
 
 
 def intro(kicker, title, description):
