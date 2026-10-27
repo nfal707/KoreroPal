@@ -4,9 +4,9 @@ from pathlib import Path
 
 
 APP_NAME = "KōreroPal"
-DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 MAX_MESSAGE_LENGTH = 2000
-MAX_CHAT_TURNS = 30
+MAX_CHAT_TURNS = 100
 SAFETY_NOTICE = (
     "KōreroPal is a wellbeing reflection tool, not a therapist, doctor, or crisis service."
 )
