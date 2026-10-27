@@ -33,6 +33,7 @@ def home_page():
                 '<p class="hero-description">Talk through your day, write in your journal, '
                 'or check in with how you’re feeling. You choose what to share and when to finish.</p>',
             )
+            st.text("KōreroPal is a wellbeing reflection app for students, created by Nick Falkov.")
             reflection_button, practices_button = st.columns([1, 1.2])
             with reflection_button:
                 go("chat", "Start a reflection", primary=True)
@@ -111,7 +112,7 @@ def home_page():
             st.html('<p class="eyebrow">OUR APPROACH</p><h2>Why I built KōreroPal</h2>')
         with right:
             st.write(
-                "I built KōreroPal to give people a way to check in with themselves and talk "
+                "I'm Nick Falkov. I built KōreroPal to give people a way to check in with themselves and talk "
                 "through what is going on. It combines my interests in computer science and "
                 "psychology.",
             )

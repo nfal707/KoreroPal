@@ -1,6 +1,10 @@
-# KōreroPal
+# KōreroPal — wellbeing reflection by Nick Falkov
 
-KōreroPal is an independent wellbeing reflection app developed by Nick Falkov, combining Computer Science, Psychology and AI.
+KōreroPal is a student wellbeing reflection app created by Nick Falkov.
+
+It brings together my studies in Computer Science and Psychology through check-ins, reflective conversations, journalling and links to established New Zealand wellbeing resources.
+
+<img src="static/logo.png" alt="KōreroPal — wellbeing reflection app created by Nick Falkov" width="180">
 
 [Open KōreroPal](https://koreropal.streamlit.app/)
 

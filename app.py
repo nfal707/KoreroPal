@@ -687,7 +687,7 @@ def privacy_page():
 def main():
     st.set_page_config(
         page_title="KōreroPal | Wellbeing App by Nick Falkov",
-        page_icon=str(STATIC / "logo.png"),
+        page_icon=str(STATIC / "favicon.png"),
         layout="centered",
         initial_sidebar_state="collapsed",
         menu_items={
