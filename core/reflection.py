@@ -44,7 +44,7 @@ def send_message(chat, request_id, message, recent_context=""):
         chat["requests"].add(request_id)
         chat["busy"] = True
         chat["last_sent"] = time.monotonic()
-        history = chat["history"][-8:].copy()
+        history = chat["history"][-30:].copy()
         chat["history"].append({"role": "user", "content": message})
 
     response = "That reply was interrupted. Please send a new message when you're ready."

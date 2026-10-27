@@ -6,4 +6,4 @@ def test_app_name():
 
 
 def test_default_groq_model():
-    assert DEFAULT_GROQ_MODEL == "llama-3.3-70b-versatile"
+    assert DEFAULT_GROQ_MODEL == "openai/gpt-oss-120b"
