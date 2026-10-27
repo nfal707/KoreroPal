@@ -160,7 +160,7 @@ def call_groq(message, recent_context="", conversation_history=None):
         )
 
     if conversation_history:
-        for item in conversation_history[-8:]:
+        for item in conversation_history[-30:]:
             if item.get("role") in {"user", "assistant"} and isinstance(item.get("content"), str):
                 messages.append(
                     {
