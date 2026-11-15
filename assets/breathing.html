@@ -1,156 +1,275 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600&family=Nunito+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-* {
-    box-sizing:border-box
+:root {
+  --forest: #2c4235;
+  --olive: #526447;
+  --edge: #a6b596;
 }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
 body {
-    margin:0;
-    color:#2c4235;
-    font:15px/1.5 system-ui,sans-serif;
-    background:transparent
+  background: transparent;
+  color: var(--forest);
+  font: 400 15px/1.55 'Nunito Sans', system-ui, sans-serif;
 }
 .practice {
-    max-width:600px;
-    margin:auto;
-    text-align:center;
-    padding:12px 16px
+  width: 100%;
+  max-width: 470px;
+  margin: 0 auto;
+  padding: 18px 12px 24px;
+  text-align: center;
+}
+.duration-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
 }
 label {
-    font-size:13px
+  font: 500 14px/1.4 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 select {
-    font:inherit;
-    border:1px solid #9ba68d;
-    border-radius:6px;
-    background:#f9faf4;
-    padding:6px;
-    color:#2c4235
+  min-height: 42px;
+  max-width: 100%;
+  padding: 7px 32px 7px 12px;
+  border: 1px solid #9ba68d;
+  border-radius: 8px;
+  background: #f9faf4;
+  color: var(--forest);
+  font: 500 14px/1.4 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 .orb-stage {
-    height:210px;
-    display:grid;
-    place-items:center;
-    position:relative
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 270px;
 }
 .orb {
-    width:140px;
-    height:140px;
-    border-radius:50%;
-    background:#ccd8be;
-    border:1px solid #a6b596;
-    box-shadow:0 0 0 17px #dfe6d5,0 0 0 34px #ebefe3;
-    transition:transform 250ms linear;
-    position:absolute
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 1px solid var(--edge);
+  background: #ccd8be;
+  box-shadow: 0 0 0 16px #dfe6d5, 0 0 0 31px #ebefe3;
+  transform: scale(1);
+  transition: transform 120ms linear;
+  pointer-events: none;
 }
 .words {
-    z-index:1;
-    position:relative;
-    pointer-events:none
+  position: relative;
+  z-index: 1;
+  width: min(100%, 230px);
+  pointer-events: none;
 }
 .phase {
-    font:24px Georgia,serif;
-    margin:0
+  margin: 0;
+  font: 500 clamp(22px, 5vw, 26px)/1.2 'Lora', Georgia, serif;
+  text-wrap: balance;
 }
 .time {
-    font-variant-numeric:tabular-nums;
-    font-size:13px;
-    margin:6px 0
+  margin: 9px 0 0;
+  font: 500 15px/1.4 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.actions {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
 }
 button {
-    font:600 14px system-ui;
-    min-height:44px;
-    padding:10px 22px;
-    border-radius:6px;
-    border:1px solid #596d4d;
-    color:#2c4235;
-    background:transparent;
-    cursor:pointer;
-    margin:3px
+  min-width: 110px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: 1px solid #596d4d;
+  color: var(--forest);
+  background: transparent;
+  font: 600 14px/1.3 'Plus Jakarta Sans', system-ui, sans-serif;
+  cursor: pointer;
 }
-button.primary {
-    background:#526447;
-    color:white
-}
-button:disabled {
-    opacity:.5;
-    cursor:default
-}
-button:focus-visible,select:focus-visible {
-    outline:3px solid #7e674c;
-    outline-offset:3px
+button.primary { background: var(--olive); color: white; }
+button:hover:not(:disabled) { background: #e1e8d9; }
+button.primary:hover:not(:disabled) { background: #3d5136; }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, select:focus-visible {
+  outline: 3px solid #7e674c;
+  outline-offset: 3px;
 }
 .note {
-    font-size:12px;
-    color:#4e604b;
-    margin:12px auto 0;
-    max-width:360px
+  margin: 24px auto 0;
+  max-width: 390px;
+  color: #4e604b;
+  font-size: 13px;
+  line-height: 1.65;
 }
-@media(prefers-reduced-motion:reduce) {
-    .orb {
-        transition:none!important;
-        transform:none!important
-    }
+@media (max-width: 390px) {
+  .practice { padding-left: 4px; padding-right: 4px; }
+  .orb-stage { min-height: 252px; }
+  .orb { width: 132px; height: 132px; }
+  .actions { margin-top: 10px; }
 }
-</style></head><body><section class="practice" aria-label="Guided breathing timer">
-<label for="duration">Your time </label><select id="duration"><option value="60">1 minute</option><option value="120">2 minutes</option><option value="300">5 minutes</option></select>
-<div class="orb-stage"><div class="orb" aria-hidden="true"></div><div class="words"><p class="phase" aria-live="polite">Settle in</p><p class="time" role="timer" aria-label="Time remaining">1:00</p></div></div>
-<div><button class="primary" id="start">Begin</button><button id="reset" disabled>Reset</button></div>
-<p class="note">Breathe gently. Follow your own comfortable pace; stop if you feel uncomfortable. No breath holds.</p>
-</section><script>
-const start=document.querySelector('#start'),reset=document.querySelector('#reset'),duration=document.querySelector('#duration'),phase=document.querySelector('.phase'),time=document.querySelector('.time'),orb=document.querySelector('.orb');
-let elapsed=0,started=0,running=false,frame=0,lastPhase='';
-function seconds() {
-    return Number(duration.value)
+@media (prefers-reduced-motion: reduce) {
+  .orb { transition: none !important; transform: none !important; }
 }
-function render() {
-    let now=elapsed+(running?(performance.now()-started)/1000:0);
-    let left=Math.max(0,Math.ceil(seconds()-now));
-    time.textContent=Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
-    if(left===0) {
-        running=false;
-        elapsed=seconds();
-        start.textContent='Begin again';
-        duration.disabled=false;
-        phase.textContent='Take your time';
-        orb.style.transform='scale(1)';
-        return
-    }
-    if(running) {
-        let part=now%10;
-        let next=part<5?'Breathe in':'Breathe out';
-        if(next!==lastPhase) {
-            phase.textContent=next;
-            lastPhase=next
-        }
-        orb.style.transform='scale('+(1+(part<5?part/5:(10-part)/5)*.2)+')';
-        frame=requestAnimationFrame(render)
-    }
+</style>
+</head>
+<body>
+<section class="practice" aria-label="Guided breathing timer">
+  <div class="duration-row">
+    <label for="duration">Your time</label>
+    <select id="duration">
+      <option value="60">1 minute</option>
+      <option value="120">2 minutes</option>
+      <option value="300">5 minutes</option>
+    </select>
+  </div>
+  <div class="orb-stage">
+    <div class="orb" aria-hidden="true"></div>
+    <div class="words">
+      <p class="phase" aria-live="polite">Settle in</p>
+      <p class="time" id="remaining" role="timer" aria-label="Time remaining" aria-live="off">1:00</p>
+    </div>
+  </div>
+  <div class="actions">
+    <button type="button" class="primary" id="start" aria-pressed="false">Begin</button>
+    <button type="button" id="reset" disabled>Reset</button>
+  </div>
+  <p class="note">Breathe gently. Follow your own comfortable pace; stop if you feel uncomfortable. No breath holds.</p>
+</section>
+<script>
+const start = document.getElementById('start');
+const reset = document.getElementById('reset');
+const duration = document.getElementById('duration');
+const phase = document.querySelector('.phase');
+const timer = document.getElementById('remaining');
+const orb = document.querySelector('.orb');
+
+let remainingSeconds = Number(duration.value);
+let deadline = 0;
+let ticker = null;
+let running = false;
+let completed = false;
+let lastPhase = '';
+
+function totalSeconds() { return Number(duration.value); }
+function stopTicker() {
+  if (ticker !== null) {
+    clearInterval(ticker);
+    ticker = null;
+  }
+}
+function showTime(seconds) {
+  const left = Math.max(0, Math.ceil(seconds));
+  timer.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+}
+function finish() {
+  stopTicker();
+  running = false;
+  completed = true;
+  remainingSeconds = 0;
+  showTime(0);
+  phase.textContent = 'Finished';
+  orb.style.transform = 'scale(1)';
+  start.textContent = 'Begin again';
+  start.setAttribute('aria-pressed', 'false');
+  duration.disabled = false;
+}
+function tick() {
+  if (!running) {
+    showTime(remainingSeconds);
+    return;
+  }
+
+  // The end time is fixed, so throttled background tabs cannot slow the clock.
+  const remainingMs = Math.max(0, deadline - Date.now());
+  remainingSeconds = remainingMs / 1000;
+  showTime(remainingSeconds);
+  if (remainingMs <= 0) {
+    finish();
+    return;
+  }
+
+  const elapsedSeconds = totalSeconds() - remainingSeconds;
+  const cycle = ((elapsedSeconds % 10) + 10) % 10;
+  const nextPhase = cycle < 5 ? 'Breathe in' : 'Breathe out';
+  if (nextPhase !== lastPhase) {
+    phase.textContent = nextPhase;
+    lastPhase = nextPhase;
+  }
+  const progress = cycle < 5 ? cycle / 5 : (10 - cycle) / 5;
+  orb.style.transform = 'scale(' + (1 + progress * 0.15).toFixed(3) + ')';
 }
 function pause() {
-    elapsed+=(performance.now()-started)/1000;
-    running=false;
-    cancelAnimationFrame(frame);
-    start.textContent='Continue';
-    phase.textContent='Paused'
+  if (!running) return;
+  remainingSeconds = Math.max(0, (deadline - Date.now()) / 1000);
+  stopTicker();
+  running = false;
+  if (remainingSeconds <= 0) {
+    finish();
+    return;
+  }
+  showTime(remainingSeconds);
+  phase.textContent = 'Paused';
+  orb.style.transform = 'scale(1)';
+  start.textContent = 'Continue';
+  start.setAttribute('aria-pressed', 'false');
 }
-start.addEventListener('click',()=> {
-    if(running) {
-        pause();return
-    }
-    if(elapsed>=seconds())elapsed=0;started=performance.now();running=true;lastPhase='';start.textContent='Pause';reset.disabled=false;duration.disabled=true;render()
+function begin() {
+  if (running) {
+    pause();
+    return;
+  }
+  if (completed || remainingSeconds <= 0) {
+    remainingSeconds = totalSeconds();
+    completed = false;
+  }
+  deadline = Date.now() + remainingSeconds * 1000;
+  running = true;
+  lastPhase = '';
+  duration.disabled = true;
+  reset.disabled = false;
+  start.textContent = 'Pause';
+  start.setAttribute('aria-pressed', 'true');
+  tick();
+  ticker = setInterval(tick, 100);
 }
-);
-reset.addEventListener('click',()=> {
-    cancelAnimationFrame(frame);elapsed=0;running=false;lastPhase='';duration.disabled=false;start.textContent='Begin';reset.disabled=true;phase.textContent='Settle in';orb.style.transform='scale(1)';render()
+function resetAll() {
+  stopTicker();
+  running = false;
+  completed = false;
+  deadline = 0;
+  remainingSeconds = totalSeconds();
+  lastPhase = '';
+  duration.disabled = false;
+  reset.disabled = true;
+  start.textContent = 'Begin';
+  start.setAttribute('aria-pressed', 'false');
+  phase.textContent = 'Settle in';
+  orb.style.transform = 'scale(1)';
+  showTime(remainingSeconds);
 }
-);
-duration.addEventListener('change',()=> {
-    elapsed=0;render()
-}
-);
-document.addEventListener('visibilitychange',()=> {
-    if(document.hidden&&running)pause()
-}
-);
-</script></body></html>
+start.addEventListener('click', begin);
+reset.addEventListener('click', resetAll);
+duration.addEventListener('change', resetAll);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) tick();
+});
+window.addEventListener('pageshow', tick);
+resetAll();
+</script>
+</body>
+</html>

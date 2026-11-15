@@ -111,7 +111,7 @@ def footer():
             page_link("terms", "Terms of use")
             page_link("accessibility", "Accessibility")
         st.caption(
-            "© 2026 KōreroPal · Created by Nick Falkov · "
+            "© 2026 KōreroPal · "
             "An independent Computer Science and Psychology project. "
             "General wellbeing information, not clinical care.",
         )

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Lora:wght@400;500;600&family=Nunito+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 :root {
     --paper: #f8f7f2;
     --surface: #fdfcf8;
@@ -10,11 +11,27 @@
     --muted: #5d685c;
     --line: #d9ded1;
     --focus: #80633e;
-    --serif: Georgia, 'Times New Roman', serif;
+    --serif: 'Fraunces', Georgia, serif;
+    --reflective: 'Lora', Georgia, serif;
+    --body-sans: 'Nunito Sans', system-ui, sans-serif;
+    --ui-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 .stApp {
     background: var(--paper);
     color: var(--ink);
+    font-family: var(--body-sans);
+}
+.stApp p, .stApp li, .stApp label, .stApp input, .stApp textarea,
+.stApp [data-testid="stText"], .stApp [data-testid="stCaptionContainer"] {
+    font-family: var(--body-sans) !important;
+}
+.stApp button, .stApp button *, .stApp select,
+.stApp [data-testid="stPageLink"] p,
+.stApp [data-testid="stNavigation"] * {
+    font-family: var(--ui-sans) !important;
+}
+.stApp h3, .reflection-question {
+    font-family: var(--reflective) !important;
 }
 .stMain {
     --weave-width: 86px;
@@ -90,6 +107,7 @@ a:hover {
     object-fit:contain;
 }
 .wordmark {
+    font-family:var(--ui-sans);
     font-weight:700;
     font-size:1.5rem;
     color:var(--forest);
@@ -127,11 +145,11 @@ a:hover {
     width:17px;
     height:17px;
     flex:none;
-    font:12px Georgia,serif;
+    font:12px var(--reflective);
     margin-top:2px;
 }
 .eyebrow {
-    font:600 .66rem/1.5 system-ui,sans-serif;
+    font:600 .66rem/1.5 var(--ui-sans);
     letter-spacing:.16em;
     color:#617257;
     margin:0 0 1.3rem;
@@ -143,6 +161,12 @@ a:hover {
     word-spacing:.04em;
     text-wrap:balance;
     margin:0 0 1.8rem;
+}
+.hero-byline {
+    color:var(--muted);
+    font-size:.92rem;
+    line-height:1.6;
+    margin:0 0 1.3rem;
 }
 .hero-description {
     color:var(--muted);
@@ -172,6 +196,7 @@ a:hover {
     font-size:.62rem;
 }
 .practice-heading h2 {
+    font-family:var(--serif) !important;
     margin:.7rem 0 .3rem;
     font-size:2rem !important;
 }

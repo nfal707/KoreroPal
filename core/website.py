@@ -33,7 +33,7 @@ def home_page():
                 '<p class="hero-description">Talk through your day, write in your journal, '
                 'or check in with how you’re feeling. You choose what to share and when to finish.</p>',
             )
-            st.text("KōreroPal is a wellbeing reflection app for students, created by Nick Falkov.")
+            st.html('<p class="hero-byline">KōreroPal is a wellbeing reflection app for students.</p>')
             reflection_button, practices_button = st.columns([1, 1.2])
             with reflection_button:
                 go("chat", "Start a reflection", primary=True)

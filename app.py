@@ -686,7 +686,7 @@ def privacy_page():
 
 def main():
     st.set_page_config(
-        page_title="KōreroPal | Wellbeing App by Nick Falkov",
+        page_title="KōreroPal | Wellbeing Reflection",
         page_icon=str(STATIC / "favicon.png"),
         layout="centered",
         initial_sidebar_state="collapsed",
@@ -751,9 +751,9 @@ def main():
     navigation = st.navigation(groups, position="top")
     st.set_page_config(
         page_title=(
-            "KōreroPal | Wellbeing App by Nick Falkov"
+            "KōreroPal | Wellbeing Reflection"
             if navigation == pages["home"]
-            else f"{navigation.title} | KōreroPal by Nick Falkov"
+            else f"{navigation.title} | KōreroPal"
         ),
         initial_sidebar_state="collapsed",
     )
