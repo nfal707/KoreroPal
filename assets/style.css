@@ -25,10 +25,41 @@
 .stApp [data-testid="stText"], .stApp [data-testid="stCaptionContainer"] {
     font-family: var(--body-sans) !important;
 }
-.stApp button, .stApp button *, .stApp select,
-.stApp [data-testid="stPageLink"] p,
-.stApp [data-testid="stNavigation"] * {
+/* Scope control fonts to our inputs, not Streamlit's own navigation and
+   Material Symbol icons (whose ligature text must never be restyled). */
+.stApp .stButton > button,
+.stApp .stFormSubmitButton > button,
+.stApp .stDownloadButton > button,
+.stApp .stLinkButton > a,
+.stApp .stSelectbox input,
+.stApp .stSelectbox [data-baseweb="select"],
+.stApp [data-testid="stPageLink"] p {
     font-family: var(--ui-sans) !important;
+}
+/* The built-in sidebar arrow must remain legible even when the browser
+   cannot load Streamlit's Material Symbols font. Replace only its icon. */
+[data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"],
+[data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"],
+[data-testid="stSidebarCollapsedControl"] .material-symbols-rounded,
+[data-testid="stSidebarCollapseButton"] .material-symbols-rounded {
+    font-size: 0 !important;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+}
+[data-testid="stSidebarCollapsedControl"] [data-testid="stIconMaterial"]::after,
+[data-testid="stSidebarCollapsedControl"] .material-symbols-rounded::after {
+    content: "›";
+    font: 600 25px/1 var(--ui-sans) !important;
+}
+[data-testid="stSidebarCollapseButton"] [data-testid="stIconMaterial"]::after,
+[data-testid="stSidebarCollapseButton"] .material-symbols-rounded::after {
+    content: "‹";
+    font: 600 25px/1 var(--ui-sans) !important;
 }
 .stApp h3, .reflection-question {
     font-family: var(--reflective) !important;
