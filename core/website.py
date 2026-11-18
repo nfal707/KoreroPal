@@ -533,7 +533,7 @@ def faq_page():
         ),
         (
             "Where does my chat go?",
-            "When AI is configured, your current message, up to eight recent messages, and up to "
+            "When AI is configured, your current message, up to eight previous messages, and up to "
             "three recent check-ins go to Groq. The app asks for consent before chat. Chat text "
             "is not saved in the KōreroPal ratings database.",
         ),
@@ -556,9 +556,8 @@ def faq_page():
         ),
         (
             "Can I delete my saved ratings?",
-            "The current portfolio app does not offer self-service deletion. Do not post recovery"
-            " codes or deletion details publicly. A private owner-managed process and retention "
-            "policy are required before participant recruitment.",
+            "You can delete saved check-ins and evaluation ratings through Your progress using"
+             " your recovery code. Ratings have a 365-day retention period when configured.",
         ),
         (
             "Does the site use cookies or advertising?",
