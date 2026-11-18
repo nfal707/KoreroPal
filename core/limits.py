@@ -93,7 +93,11 @@ def consume_ai_quota(client_ip, session_id):
     secret = get_secret("RATE_LIMIT_SECRET")
     if not isinstance(secret, str) or len(secret) < 32 or not isinstance(session_id, str) or not session_id:
         raise QuotaUnavailable("AI usage checks are not configured.")
-    ip_key = _digest("ip", _ip_scope(client_ip), secret)
+    ip_scope = _ip_scope(client_ip)
+    # Unknown IPs must not force unrelated users into one shared network bucket.
+    if ip_scope == "unavailable":
+        ip_scope = f"unavailable-session:{session_id}"
+    ip_key = _digest("ip", ip_scope, secret)
     session_key = _digest("session", session_id, secret)
     try:
         if database.supabase_available():
