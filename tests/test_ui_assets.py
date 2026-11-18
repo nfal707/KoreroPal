@@ -22,4 +22,4 @@ def test_breathing_timer_uses_wall_clock_and_spaced_layout():
     assert "deadline - Date.now()" in timer
     assert "setInterval(tick, 100)" in timer
     assert "min-height: 270px;" in timer
-    assert "if (document.hidden) pause()" not in timer
+    assert "if (document.hidden) pause()" in timer
