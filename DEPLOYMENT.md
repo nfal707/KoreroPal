@@ -5,7 +5,7 @@
 Open the Supabase project and confirm it is active.
 
 1. Open the SQL editor.
-2. Run the complete contents of `supabase_schema.sql`.
+2. Run `supabase_schema.sql`, then `supabase_security.sql` and `supabase_retention.sql` in that order. Verify both RPCs and the scheduled daily cleanup.
 3. Open the project API settings.
 4. Copy the project URL exactly. It should look like `https://your-project-ref.supabase.co` and must not include `/rest/v1`.
 5. Copy a server-side Supabase secret key. Do not place it in source code or GitHub.
@@ -57,7 +57,7 @@ The current app uses Streamlit 1.66.1. Keep its CORS and XSRF protections enable
 
 The Supabase tables are intentionally server-only. Do not add public RLS policies to silence the informational no-policy notices. The schema script includes a conditional permission hardening step for the optional `rls_auto_enable` event-trigger function. The existing hosted KoreroPal project was checked and its unnecessary PUBLIC, anon, and authenticated execution grants were revoked on 24 October 2026. No rating data or table structure was changed.
 
-Before opening this portfolio project to broader use, set provider spend limits and add host-level abuse controls. The app's cooldown and request IDs are scoped to one process/session and do not prevent someone opening multiple sessions. An interrupted network request cannot guarantee provider-level exactly-once billing. Automatic retries are disabled to avoid silently repeating requests.
+The application uses atomic quotas: per session 25/10 minutes and 35/day, per hashed IP 60/10 minutes and 180/day, globally 300/day. The app uses a dedicated RATE_LIMIT_SECRET if configured, or the existing server-only Supabase secret key as its HMAC key. At least one valid server-only 32+ character key is required; missing keys or failed quota checks mean no Groq request. Client IPs from Streamlit can be spoofed and a shared network has a combined quota. Before opening this portfolio project to broader use, also set provider spend limits and add host-level abuse controls. The app's cooldown and request IDs are scoped to one process/session and do not prevent someone opening multiple sessions. An interrupted network request cannot guarantee provider-level exactly-once billing. Automatic retries are disabled to avoid silently repeating requests.
 
 Use a configured staging deployment to verify real Groq response quality and Supabase REST writes before merging to the live branch. A local fallback-mode preview does not verify live credentials or model availability. The included keyword safety checks and model instructions are limited safeguards, not a clinical safety certification.
 

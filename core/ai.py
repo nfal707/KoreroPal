@@ -3,7 +3,8 @@ import unicodedata
 
 from groq import Groq
 
-from core.config import APP_NAME, DEFAULT_GROQ_MODEL, MAX_MESSAGE_LENGTH, get_secret
+from core.config import APP_NAME, DEFAULT_GROQ_MODEL, MAX_AI_HISTORY_MESSAGES, MAX_MESSAGE_LENGTH, get_secret
+from core.limits import QuotaUnavailable, consume_ai_quota, quota_secret
 from core.safety import assess_risk, crisis_response
 from core.strategies import choose_strategy
 
@@ -142,10 +143,12 @@ def clean_writing_style(text):
     )
 
 def groq_available():
-    return get_secret("GROQ_API_KEY") is not None
+    return bool(get_secret("GROQ_API_KEY")) and quota_secret() is not None
 
 
-def call_groq(message, recent_context="", conversation_history=None):
+def call_groq(message, recent_context="", conversation_history=None, client_ip=None, session_id=None):
+    if not consume_ai_quota(client_ip, session_id):
+        raise QuotaUnavailable("The AI usage limit has been reached for now.")
     client = Groq(api_key=get_secret("GROQ_API_KEY"), timeout=20.0, max_retries=0)
     model = get_secret("GROQ_MODEL", DEFAULT_GROQ_MODEL)
 
@@ -160,7 +163,7 @@ def call_groq(message, recent_context="", conversation_history=None):
         )
 
     if conversation_history:
-        for item in conversation_history[-30:]:
+        for item in conversation_history[-MAX_AI_HISTORY_MESSAGES:]:
             if item.get("role") in {"user", "assistant"} and isinstance(item.get("content"), str):
                 messages.append(
                     {
@@ -201,7 +204,7 @@ def fallback_response(message):
     return f"{openings[theme]}\n\nOne option: {strategy['steps'][0]} Would that feel useful, or would you prefer to talk it through?"
 
 
-def generate_support_response(message, recent_context="", conversation_history=None):
+def generate_support_response(message, recent_context="", conversation_history=None, client_ip=None, session_id=None):
     if not isinstance(message, str) or not message.strip() or len(message) > MAX_MESSAGE_LENGTH:
         raise ValueError("The message is empty or too long.")
 
@@ -216,10 +219,12 @@ def generate_support_response(message, recent_context="", conversation_history=N
 
     if groq_available():
         try:
-            response = call_groq(message, recent_context, conversation_history)
+            response = call_groq(message, recent_context, conversation_history, client_ip, session_id)
 
             if response:
                 return clean_writing_style(response), risk
+        except QuotaUnavailable:
+            return (fallback_response(message) + "\n\n*AI requests are temporarily limited. This built-in reflection prompt does not use AI tokens.*", risk)
         except Exception:
             pass
 

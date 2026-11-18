@@ -1,6 +1,6 @@
 # KōreroPal design notes
 
-The design keeps the original olive identity and gives the content more room. Display headings use Georgia, with system fonts for readable body text and controls. There are no external font requests.
+The design keeps the original olive identity and gives the content more room. Display headings use Georgia, with system fonts for readable body text and controls. There are no external font requests; the site uses system fonts.
 
 ## Shared design
 

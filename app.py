@@ -20,6 +20,7 @@ from core.database import (
     load_evaluation_sessions,
     save_daily_checkin,
     save_evaluation_session,
+    delete_ratings,
 )
 from core.summaries import (
     add_change_columns,
@@ -62,6 +63,9 @@ def reset_session_data():
 
 
 def initialise_session_data():
+    if "ai_session_id" not in st.session_state:
+        st.session_state.ai_session_id = uuid.uuid4().hex
+
     if "chat" not in st.session_state:
         reset_session_data()
 
@@ -273,7 +277,7 @@ def chat_form(anonymous_id):
 
     try:
         with st.spinner("Taking a moment to reflect..."):
-            send_message(chat, input_key, message, recent_context)
+            send_message(chat, input_key, message, recent_context, st.context.ip_address, st.session_state.ai_session_id)
         st.rerun()
     except ValueError as error:
         st.warning(str(error))
@@ -524,6 +528,24 @@ def my_dashboard_page(anonymous_id):
 
         st.text(evaluation_summary(evaluations))
 
+    with st.expander("Delete my saved ratings"):
+        st.warning("Permanently delete all saved check-ins and evaluation ratings linked to this recovery code. This cannot erase downloaded copies or separate provider records.")
+        with st.form("delete_ratings_form"):
+            confirmation = st.text_input("Type DELETE to confirm", max_chars=6)
+            clicked = st.form_submit_button("Permanently delete my ratings")
+        if clicked:
+            if confirmation != "DELETE":
+                st.error("Please type DELETE exactly to confirm.")
+            else:
+                try:
+                    delete_ratings(anonymous_id)
+                except DatabaseConnectionError as error:
+                    st.error(str(error))
+                else:
+                    switch_identity(create_anonymous_id())
+                    st.session_state.ratings_deleted_notice = True
+                    st.rerun()
+
     st.subheader("Download my anonymous ratings")
 
     checkin_export = checkins.copy()
@@ -636,7 +658,7 @@ def privacy_page():
     )
 
     st.subheader("What KōreroPal saves")
-    st.write("- Anonymous study code")
+    st.write("- Pseudonymous recovery code")
     st.write("- Date and time")
     st.write("- Mood, stress, and energy ratings from 1–7")
     st.write("- Three 1–7 ratings about the AI companion")
@@ -672,10 +694,9 @@ def privacy_page():
     )
     st.subheader("Retention and deletion")
     st.write(
-        "The current portfolio version has no automatic expiry or self-service deletion for saved"
-        " ratings. An owner-managed retention and private deletion process must be established "
-        "before participant recruitment. Do not post your recovery code on the public issue "
-        "tracker.",
+        "Saved ratings are retained for up to 365 days after hosted retention is configured."
+        " You can delete ratings linked to your recovery code from Your progress."
+        " Downloads and provider-held records are outside this deletion. Keep codes private.",
     )
     st.subheader("Study limitations")
     st.write(
@@ -710,6 +731,8 @@ def main():
         st.stop()
     initialise_session_data()
     anonymous_id = get_anonymous_id()
+    if st.session_state.pop("ratings_deleted_notice", False):
+        st.success("Saved ratings linked to your previous recovery code were deleted.")
 
     definitions = [
         ("home", website.home_page, "Home", "home", True, ""),

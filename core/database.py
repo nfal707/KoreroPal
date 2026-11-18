@@ -1,6 +1,6 @@
 import sqlite3
 from contextlib import closing
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -146,6 +146,38 @@ def request_supabase(method, table_name, **kwargs):
         ) from error
 
 
+def request_supabase_rpc(function_name, payload):
+    if function_name not in {"consume_koreropal_ai_quota", "delete_koreropal_ratings"}:
+        raise ValueError("Unknown database operation.")
+    base = supabase_table_url("daily_checkins").rsplit("/daily_checkins", 1)[0]
+    try:
+        response = requests.post(
+            f"{base}/rpc/{function_name}", json=payload, headers=supabase_headers(),
+            timeout=SUPABASE_TIMEOUT, allow_redirects=False,
+        )
+        response.raise_for_status()
+        if response.status_code >= 300:
+            raise DatabaseConnectionError("The database returned an unexpected redirect.")
+        return response
+    except requests.exceptions.RequestException as error:
+        raise DatabaseConnectionError("The database operation could not be completed.") from error
+
+
+def delete_ratings(anonymous_id):
+    validate_anonymous_id(anonymous_id)
+    if supabase_available():
+        response = request_supabase_rpc("delete_koreropal_ratings", {"p_recovery_code": anonymous_id})
+        count = response.json()
+        if type(count) is not int or count < 0:
+            raise DatabaseConnectionError("The deletion could not be confirmed.")
+        return count
+    with closing(connect()) as conn:
+        with conn:
+            first = conn.execute("DELETE FROM daily_checkins WHERE anonymous_id = ?", (anonymous_id,)).rowcount
+            second = conn.execute("DELETE FROM evaluation_sessions WHERE anonymous_id = ?", (anonymous_id,)).rowcount
+    return first + second
+
+
 def init_db():
     if supabase_available():
         return
@@ -186,6 +218,9 @@ def init_db():
         """
     )
 
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=365)).isoformat()
+    cur.execute("DELETE FROM daily_checkins WHERE created_at < ?", (cutoff,))
+    cur.execute("DELETE FROM evaluation_sessions WHERE created_at < ?", (cutoff,))
     conn.commit()
     conn.close()
 
