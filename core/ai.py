@@ -4,7 +4,7 @@ import unicodedata
 from groq import Groq
 
 from core.config import APP_NAME, DEFAULT_GROQ_MODEL, MAX_AI_HISTORY_MESSAGES, MAX_MESSAGE_LENGTH, get_secret
-from core.limits import QuotaUnavailable, consume_ai_quota
+from core.limits import QuotaUnavailable, consume_ai_quota, quota_secret
 from core.safety import assess_risk, crisis_response
 from core.strategies import choose_strategy
 
@@ -143,8 +143,7 @@ def clean_writing_style(text):
     )
 
 def groq_available():
-    secret = get_secret("RATE_LIMIT_SECRET")
-    return bool(get_secret("GROQ_API_KEY")) and isinstance(secret, str) and len(secret) >= 32
+    return bool(get_secret("GROQ_API_KEY")) and quota_secret() is not None
 
 
 def call_groq(message, recent_context="", conversation_history=None, client_ip=None, session_id=None):

@@ -41,6 +41,11 @@ def test_session_daily_limit_even_across_windows(quota, monkeypatch):
     assert quota("192.0.2.2", "daily-session") is False
 
 
+def test_supabase_server_secret_can_secure_limits(monkeypatch):
+    monkeypatch.setattr(limits, "get_secret", lambda name, default=None: "sb_secret_" + "q" * 50 if name == "SUPABASE_SECRET_KEY" else default)
+    assert limits.quota_secret().startswith("sb_secret_")
+
+
 def test_missing_secret_disables_ai(monkeypatch, tmp_path):
     monkeypatch.setattr(database, "DB_PATH", tmp_path / "ratings.db")
     monkeypatch.setattr(database, "get_secret", lambda name, default=None: default)

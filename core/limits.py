@@ -88,9 +88,22 @@ def _local_reserve(ip_key, session_key):
         raise QuotaUnavailable("AI usage checks are temporarily unavailable.") from error
 
 
+def quota_secret():
+    """A dedicated secret is preferred; the existing server-only Supabase key is a fallback.
+
+    No API key is ever exposed in the rate-limit table. HMAC input includes its
+    own namespace so an IP hash cannot be used as an API credential.
+    """
+    for name in ("RATE_LIMIT_SECRET", "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"):
+        value = get_secret(name)
+        if isinstance(value, str) and len(value.strip()) >= 32:
+            return value.strip()
+    return None
+
+
 def consume_ai_quota(client_ip, session_id):
     """Reserve one AI call before making it. Never fail open on missing quota storage."""
-    secret = get_secret("RATE_LIMIT_SECRET")
+    secret = quota_secret()
     if not isinstance(secret, str) or len(secret) < 32 or not isinstance(session_id, str) or not session_id:
         raise QuotaUnavailable("AI usage checks are not configured.")
     ip_scope = _ip_scope(client_ip)
