@@ -5,6 +5,7 @@ import pytest
 
 import core.database as database
 import core.limits as limits
+from core.safety import assess_risk
 
 
 @pytest.fixture
@@ -59,6 +60,22 @@ def test_ipv6_privacy_prefix_and_hash():
     key = limits._digest("ip", "192.0.2.4", "secret")
     assert "192.0.2.4" not in key
     assert len(key) == 64
+
+
+@pytest.mark.parametrize("message,expected", [
+    ("I wish I were dead", "crisis"),
+    ("I don't want to wake up", "crisis"),
+    ("I hope I don't wake up", "crisis"),
+    ("I am thinking about killing myself", "crisis"),
+    ("I want to die", "crisis"),
+    ("I'm not suicidal", "normal"),
+    ("I want to live", "normal"),
+    ("I do not want to die", "normal"),
+    ("I am hopeless", "high"),
+    ("I am stressed about exams", "normal"),
+])
+def test_safety_regressions(message, expected):
+    assert assess_risk(message) == expected
 
 
 def test_deletion_is_isolated_and_recoverable_empty_state(monkeypatch, tmp_path):
