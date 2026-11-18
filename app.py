@@ -62,6 +62,9 @@ def reset_session_data():
 
 
 def initialise_session_data():
+    if "ai_session_id" not in st.session_state:
+        st.session_state.ai_session_id = uuid.uuid4().hex
+
     if "chat" not in st.session_state:
         reset_session_data()
 
@@ -273,7 +276,7 @@ def chat_form(anonymous_id):
 
     try:
         with st.spinner("Taking a moment to reflect..."):
-            send_message(chat, input_key, message, recent_context)
+            send_message(chat, input_key, message, recent_context, st.context.ip_address, st.session_state.ai_session_id)
         st.rerun()
     except ValueError as error:
         st.warning(str(error))

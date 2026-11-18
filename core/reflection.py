@@ -20,7 +20,7 @@ def is_end_chat(message):
     return message.strip().lower().rstrip(".!?") in {"end chat", "end the chat"}
 
 
-def send_message(chat, request_id, message, recent_context=""):
+def send_message(chat, request_id, message, recent_context="", client_ip=None, session_id=None):
     """Handle each submitted turn once, including during a Streamlit rerun."""
 
     message = message.strip()
@@ -49,7 +49,7 @@ def send_message(chat, request_id, message, recent_context=""):
 
     response = "That reply was interrupted. Please send a new message when you're ready."
     try:
-        response, risk = generate_support_response(message, recent_context, history)
+        response, risk = generate_support_response(message, recent_context, history, client_ip, session_id)
     except Exception:
         response = crisis_response() if risk == "crisis" else (
             "I couldn't finish that reply. You can try a new message, take a break, "

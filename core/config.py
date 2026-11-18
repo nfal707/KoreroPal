@@ -7,6 +7,7 @@ APP_NAME = "KōreroPal"
 DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 MAX_MESSAGE_LENGTH = 2000
 MAX_CHAT_TURNS = 100
+MAX_AI_HISTORY_MESSAGES = 8
 SAFETY_NOTICE = (
     "KōreroPal is a wellbeing reflection tool, not a therapist, doctor, or crisis service."
 )
